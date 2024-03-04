@@ -103,8 +103,8 @@ app.post("/api/login", async (req, res, next) => {
 	const ret = {
 		id: user ? user._id : -1,
 		firstName: user ? user.FirstName : "",
-		username: user ? user.Username : "",
 		lastName: user ? user.LastName : "",
+		username: user ? user.Username : "",
 		error: error
 	};
 
