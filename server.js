@@ -23,7 +23,7 @@ if (process.env.NODE_ENV === 'production')
 require('dotenv').config();
 const url = process.env.TEST_MONGODB_URI;
 const MongoClient = require("mongodb").MongoClient;
-const client = new MongoClient(uri);
+const client = new MongoClient(url);
 client.connect(console.log("mongodb connected"));
 app.use(cors());
 app.use(bodyParser.json());
