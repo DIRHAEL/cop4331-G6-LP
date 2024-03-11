@@ -22,7 +22,7 @@ const Login = () => {
     if (process.env.NODE_ENV === "production") {
       return "https://" + app_name + ".herokuapp.com/" + route;
     } else {
-      return "http://localhost:5000/" + route;
+      return "http://localhost:5001/" + route;
     }
   }
 
@@ -68,11 +68,12 @@ const Login = () => {
             event.preventDefault();
             alert("Log in function");
             let obj = {
-              login: loginEmail.value,
-              password: loginPassword.value,
+              login: loginEmail,
+              password: loginPassword,
             };
+            // login : sdfsdfas
+            // password : dsfsdafasd
             let js = JSON.stringify(obj);
-            console.log(js);
 
             try {
               const response = await fetch(buildPath("api/login"), {
@@ -81,10 +82,13 @@ const Login = () => {
                 headers: { "Content-Type": "application/json" },
               });
 
+              alert("Hit logged in api");
               const res = JSON.parse(await response.text());
 
+              console.log(res);
+
               if (res.id <= 0) {
-                setMessage("User/Password combination incorrect");
+                alert("User/Password combination incorrect");
               } else {
                 const user = {
                   firstName: res.firstName,
@@ -93,7 +97,6 @@ const Login = () => {
                 };
                 localStorage.setItem("user_data", JSON.stringify(user));
                 setMessage("");
-                window.location.href = "/backend";
               }
             } catch (e) {
               alert(e.toString());
@@ -176,10 +179,10 @@ const Login = () => {
             event.preventDefault();
             alert("Sign-Up function");
             let obj = {
-              firstName: firstName.value,
-              lastName: lastName.value,
-              username: userName.value,
-              email: signupEmail.value,
+              firstName: firstName,
+              lastName: lastName,
+              username: userName,
+              email: signupEmail,
               password: signupPassword,
             };
             let js = JSON.stringify(obj);
@@ -193,6 +196,8 @@ const Login = () => {
               });
 
               const res = JSON.parse(await response.text());
+
+              alert("Signed Up");
 
               // Check if the username or email already exists
               // TODO

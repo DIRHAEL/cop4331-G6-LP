@@ -11,7 +11,6 @@ const LoginPage = () => {
       <div className="flex-1 flex justify-center">
         <Login />
       </div>
-      <Page />
     </div>
   );
 };
