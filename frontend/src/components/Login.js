@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { useState } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
 import * as Form from "@radix-ui/react-form";
@@ -82,7 +83,6 @@ const Login = () => {
                 headers: { "Content-Type": "application/json" },
               });
 
-              alert("Hit logged in api");
               const res = JSON.parse(await response.text());
 
               console.log(res);
@@ -97,6 +97,7 @@ const Login = () => {
                 };
                 localStorage.setItem("user_data", JSON.stringify(user));
                 setMessage("");
+                window.location.href = "/home";
               }
             } catch (e) {
               alert(e.toString());
@@ -198,6 +199,7 @@ const Login = () => {
               const res = JSON.parse(await response.text());
 
               alert("Signed Up");
+              window.location.href = "/home";
 
               // Check if the username or email already exists
               // TODO
