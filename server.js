@@ -21,7 +21,7 @@ if (process.env.NODE_ENV === "production") {
 // Your MongoDB connection string
 // const uri = "mongodb+srv://thebeast:COP4331-G6@cop4331-g6-lp.rvnbxnv.mongodb.net/?retryWrites=true&w=majority&appName=COP4331-G6-LP";
 require("dotenv").config();
-const url = require("dotenv").config(); // storing into environmental
+const url = process.env.MONGODB_URI; // storing into environmental
 const MongoClient = require("mongodb").MongoClient;
 const client = new MongoClient(url);
 client.connect(console.log("mongodb connected"));
