@@ -23,9 +23,30 @@ if (process.env.NODE_ENV === "production") {
 // const uri = "mongodb+srv://thebeast:COP4331-G6@cop4331-g6-lp.rvnbxnv.mongodb.net/?retryWrites=true&w=majority&appName=COP4331-G6-LP";
 require("dotenv").config();
 const url = process.env.MONGODB_URI; // storing into environmental
-const conn = mongoose.createConnection(url, {
+const mongooseOptions = {
 	useNewUrlParser: true,
 	useUnifiedTopology: true,
+};
+
+const connectToDB = async () => {
+	try {
+		await mongoose.connect(url, mongooseOptions);
+		console.log("MongoDB connected");
+	}
+	catch (error) {
+		console.error("Failed to connect to MongoDB", error);
+		process.exit(1);
+	}
+};
+
+connectToDB();
+
+mongoose.connection.on("error", (error) => {
+	console.error("MongoDB connection error", error);
+});
+
+mongoose.connection.on("disconnected", () => {
+	console.log("MongoDB disconnected");
 });
 
 let gfs;
