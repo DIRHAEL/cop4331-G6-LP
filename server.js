@@ -23,10 +23,14 @@ if (process.env.NODE_ENV === "production") {
 // const uri = "mongodb+srv://thebeast:COP4331-G6@cop4331-g6-lp.rvnbxnv.mongodb.net/?retryWrites=true&w=majority&appName=COP4331-G6-LP";
 require("dotenv").config();
 const url = process.env.MONGODB_URI; // storing into environmental
-const conn = mongoose.createConnection(url, {
+mongoose.connect(url, {
 	useNewUrlParser: true,
 	useUnifiedTopology: true,
-});
+})
+.then(() => console.log("MongoDB connected"))
+.catch(err => console.error("MongoDB connection error:", err));
+
+const conn = mongoose.connection;
 
 let gfs;
 conn.once("open", () => {
@@ -37,7 +41,7 @@ conn.once("open", () => {
 });
 
 const storage = new GridFsStorage({
-	url: url,
+	url: process.env.MONGODB_URI,
 	file: (req, file) => {
 		return {
 			bucketName: "images",
