@@ -48,28 +48,47 @@ app.use(bodyParser.json());
 // });
 
 app.post("/api/createuser", async (req, res, next) => {
-  const { firstName, lastName, username, email, password } = req.body;
+	const { firstName, lastName, username, email, password } = req.body;
 
-  // Hash the password
-  const hashedPassword = await bcrypt.hash(password, 10);
+	// Validate email format
+	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+	if (!emailRegex.test(email)) {
+		return res.status(400).json({ error: "Invalid email format" });
+	}
 
-  let error = "";
+	let error = "";
 
-  try {
-    const db = client.db("COP4331-G6-LP");
-    const newUser = {
-      FirstName: firstName,
-      LastName: lastName,
-      Username: username,
-      Email: email,
-      Password: hashedPassword,
-    };
-    const result = await db.collection("Users").insertOne(newUser);
-  } catch (e) {
-    error = e.toString();
-  }
+	try {
+		const db = client.db("COP4331-G6-LP");
+		// Check if email already exists
+		const emailExists = await db.collection("Users").findOne({ Email: email });
+		if (emailExists) {
+			return res.status(400).json({ error: "Email already exists" });
+		}
 
-  res.status(error ? 500 : 200).json({ error: error });
+		// Check if username already exists
+		const usernameExists = await db.collection("Users").findOne({ Username: username });
+		if (usernameExists) {
+			return res.status(400).json({ error: "Username already exists" });
+		}
+
+		// Hash the password
+		const hashedPassword = await bcrypt.hash(password, 10);
+
+		// Create new user
+		const newUser = {
+			FirstName: firstName,
+			LastName: lastName,
+			Username: username,
+			Email: email,
+			Password: hashedPassword,
+		};
+		const result = await db.collection("Users").insertOne(newUser);
+	} catch (e) {
+		error = e.toString();
+	}
+
+	res.status(error ? 500 : 200).json({ error: error });
 });
 
 // Updated /api/login endpoint to include bcrypt password comparison
