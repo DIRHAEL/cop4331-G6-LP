@@ -67,7 +67,7 @@ app.post("/api/createuser", async (req, res, next) => {
 	let error = "";
 
 	try {
-		const db = client.db("COP4331-G6-LP");
+		const db = conn.db("COP4331-G6-LP");
 		// Check if email already exists
 		const emailExists = await db.collection("Users").findOne({ Email: email });
 		if (emailExists) {
@@ -107,7 +107,7 @@ app.post("/api/login", async (req, res, next) => {
 	let user;
 
 	try {
-		const db = client.db("COP4331-G6-LP");
+		const db = conn.db("COP4331-G6-LP");
 		user = await db.collection("Users").findOne({ Email: login });
 		if (user) {
 			const passwordMatch = await bcrypt.compare(password, user.Password);
