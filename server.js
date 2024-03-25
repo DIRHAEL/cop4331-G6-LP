@@ -1,51 +1,58 @@
 const express = require("express");
+const multer = require("multer");
+const GridFsStorage = require("mongoose-gridfs-storage");
+const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const path = require("path");
-const GridFsStorage = require("mongoose-gridfs-storage");
-const multer = require("multer");
-const Grid = require("gridfs-stream");
-const mongoose = require("mongoose");
 const PORT = process.env.PORT || 5000;
 const app = express();
-app.set ("port", (process.env.PORT || 5000));
-// For Heroku deployment
+app.set("port", process.env.PORT || 5000);
 
 // Server static assets if in production
-if (process.env.NODE_ENV === 'production') 
-{
-  // Set static folder
-  app.use(express.static('frontend/build'));
-
-  app.get('*', (req, res) => 
- {
-	res.sendFile(path.resolve(__dirname, 'frontend', 'build', 'index.html'));
-  });
+if (process.env.NODE_ENV === "production") {
+	// Set static folder
+	app.use(express.static("frontend/build"));
+	app.get("*", (req, res) => {
+		res.sendFile(path.resolve(__dirname, "frontend", "build", "index.html"));
+	});
 }
-
 
 // Your MongoDB connection string
 // const uri = "mongodb+srv://thebeast:COP4331-G6@cop4331-g6-lp.rvnbxnv.mongodb.net/?retryWrites=true&w=majority&appName=COP4331-G6-LP";
-require ('dotenv').config();
-const url = process.env.MONGODB_URI;
-// const MongoClient = require("mongodb").MongoClient;
-// const client = new MongoClient(url);
-// client.connect(console.log("mongodb connected"));
+require("dotenv").config();
+const url = process.env.MONGODB_URI; // storing into environmental
+const conn = mongoose.createConnection(url, {
+	useNewUrlParser: true,
+	useUnifiedTopology: true,
+});
 
-mongoose.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
-const conn = mongoose.connection;
 let gfs;
 conn.once("open", () => {
 	gfs = new mongoose.mongo.GridFSBucket(conn.db, {
-		bucketName: "images"
-  	});
+		bucketName: "images",
+	});
 	console.log("MongoDB connected");
+});
+
+const storage = new GridFsStorage({
+	url: url,
+	file: (req, file) => {
+		return {
+			bucketName: "images",
+			filename: file.originalname,
+		};
+	},
 });
 const upload = multer({ storage });
 
+// const MongoClient = require("mongodb").MongoClient;
+// const client = new MongoClient(url);
+// client.connect(console.log("mongodb connected"));
 app.use(cors());
 app.use(bodyParser.json());
+
 
 
 app.post("/api/createuser", async (req, res, next) => {
@@ -85,14 +92,12 @@ app.post("/api/createuser", async (req, res, next) => {
 			Password: hashedPassword,
 		};
 		const result = await db.collection("Users").insertOne(newUser);
-  	} 
-	catch (e) {
-	error = e.toString();
+	} catch (e) {
+		error = e.toString();
 	}
 
 	res.status(error ? 500 : 200).json({ error: error });
 });
-
 
 // Updated /api/login endpoint to include bcrypt password comparison
 app.post("/api/login", async (req, res, next) => {
@@ -100,7 +105,6 @@ app.post("/api/login", async (req, res, next) => {
 
 	let error = "";
 	let user;
-
 
 	try {
 		const db = client.db("COP4331-G6-LP");
@@ -114,7 +118,8 @@ app.post("/api/login", async (req, res, next) => {
 		} else {
 			error = "User not found";
 		}
-	} catch (e) {
+	}
+	catch (e) {
 		error = e.toString();
 	}
 
@@ -123,55 +128,50 @@ app.post("/api/login", async (req, res, next) => {
 		firstName: user ? user.FirstName : "",
 		lastName: user ? user.LastName : "",
 		username: user ? user.Username : "",
-		error: error
+		error: error,
 	};
 
 	res.status(error ? 500 : 200).json(ret);
 });
 
-// API endpoint to upload image
+// Upload Image
 app.post("/api/uploadimage", upload.single("image"), (req, res) => {
 	if (!req.file) {
 		return res.status(400).json({ error: "No file uploaded" });
 	}
-	const { ImageID, LocationID, UserID, Description, Timestamp } = req.body;
+	const { LocationID, UserID, Description, Timestamp } = req.body;
 	const image = {
+		ImageID,
 		LocationID,
 		UserID,
 		ImageURL: req.file.filename, // Store filename in database
 		Description,
-		Timestamp
+		Timestamp,
 	};
+
 	// Save image metadata to MongoDB
 	conn.db.collection("Images").insertOne(image, (err, result) => {
-	  if (err) {
-		return res.status(500).json({ error: err.message });
-	  }
-	  res.status(200).json({ success: true });
+		if (err) {
+			return res.status(500).json({ error: err.message });
+		}
+		res.status(200).json({ success: true });
 	});
 });
 
-app.post("/api/download/:filename", async (req, res) => {
-	
-
-});
-
 app.use((req, res, next) => {
-	res.setHeader('Access-Control-Allow-Origin', '*');
+	res.setHeader("Access-Control-Allow-Origin", "*");
 	res.setHeader(
-		'Access-Control-Allow-Headers',
-		'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+		"Access-Control-Allow-Headers",
+		"Origin, X-Requested-With, Content-Type, Accept, Authorization"
 	);
 	res.setHeader(
-		'Access-Control-Allow-Methods',
-		'GET, POST, PATCH, DELETE, OPTIONS'
+		"Access-Control-Allow-Methods",
+		"GET, POST, PATCH, DELETE, OPTIONS"
 	);
 	next();
 });
 
 // app.listen(5000); // start Node + Express server on port 5000
-app.listen(PORT, () => 
-{
-  console.log('Server listening on port ' + PORT);
+app.listen(PORT, () => {
+	console.log("Server listening on port " + PORT);
 });
-
