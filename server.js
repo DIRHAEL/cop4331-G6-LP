@@ -1,4 +1,7 @@
 const express = require("express");
+const multer = require("multer");
+const GridFsStorage = require("mongoose-gridfs-storage");
+const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
@@ -6,46 +9,85 @@ const path = require("path");
 const PORT = process.env.PORT || 5000;
 const app = express();
 app.set("port", process.env.PORT || 5000);
-// For Heroku deployment
 
 // Server static assets if in production
 if (process.env.NODE_ENV === "production") {
-  // Set static folder
-  app.use(express.static("frontend/build"));
-
-  app.get("*", (req, res) => {
-    res.sendFile(path.resolve(__dirname, "frontend", "build", "index.html"));
-  });
+	// Set static folder
+	app.use(express.static("frontend/build"));
+	app.get("*", (req, res) => {
+		res.sendFile(path.resolve(__dirname, "frontend", "build", "index.html"));
+	});
 }
 
 // Your MongoDB connection string
 // const uri = "mongodb+srv://thebeast:COP4331-G6@cop4331-g6-lp.rvnbxnv.mongodb.net/?retryWrites=true&w=majority&appName=COP4331-G6-LP";
 require("dotenv").config();
 const url = process.env.MONGODB_URI; // storing into environmental
-const MongoClient = require("mongodb").MongoClient;
-const client = new MongoClient(url);
-client.connect(console.log("mongodb connected"));
+mongoose.connect(url, {
+	useNewUrlParser: true,
+	useUnifiedTopology: true,
+})
+	.then(() => {
+		console.log("MongoDB connected");
+
+		// Setup GridFS storage
+		const conn = mongoose.connection;
+		let gfs;
+		conn.once("open", () => {
+			gfs = new mongoose.mongo.GridFSBucket(conn.db, {
+				bucketName: "images",
+			});
+			console.log("GridFS initialized");
+
+			// Initialize routes after database connection is established
+
+			const storage = new GridFsStorage({
+				url: process.env.MONGODB_URI,
+				file: (req, file) => {
+					return {
+						bucketName: "images",
+						filename: file.originalname,
+					};
+				},
+			});
+			const upload = multer({ storage });
+
+			// Upload Image
+			app.post("/api/uploadimage", upload.single("image"), (req, res) => {
+				if (!req.file) {
+					return res.status(400).json({ error: "No file uploaded" });
+				}
+				const { LocationID, UserID, Description, Timestamp } = req.body;
+				const image = {
+					ImageID,
+					LocationID,
+					UserID,
+					ImageURL: req.file.filename, // Store filename in database
+					Description,
+					Timestamp,
+				};
+
+				// Save image metadata to MongoDB
+				conn.db.collection("Images").insertOne(image, (err, result) => {
+					if (err) {
+						return res.status(500).json({ error: err.message });
+					}
+					res.status(200).json({ success: true });
+				});
+			});
+
+			// Additional routes can be defined here
+		});
+	})
+	.catch(err => console.error("MongoDB connection error:", err));
+
+// const MongoClient = require("mongodb").MongoClient;
+// const client = new MongoClient(url);
+// client.connect(console.log("mongodb connected"));
 app.use(cors());
 app.use(bodyParser.json());
 
-// let db;
 
-// client.connect(err => {
-// 	console.log("Connecting to MongoDB");
-// 	if (err) {
-// 		console.error("Failed to connect to MongoDB", err);
-// 		process.exit(1);
-// 	}
-// 	else {
-// 		console.log("MongoDB connected");
-// 		db = client.db("COP4331-G6-LP");
-
-// 		// Start the server after the DB connection is established
-// 		app.listen(5000, () => {
-// 			console.log("Server started on port 5000");
-// 		});
-// 	}
-// });
 
 app.post("/api/createuser", async (req, res, next) => {
 	const { firstName, lastName, username, email, password } = req.body;
@@ -59,7 +101,7 @@ app.post("/api/createuser", async (req, res, next) => {
 	let error = "";
 
 	try {
-		const db = client.db("COP4331-G6-LP");
+		const db = conn.db("COP4331-G6-LP");
 		// Check if email already exists
 		const emailExists = await db.collection("Users").findOne({ Email: email });
 		if (emailExists) {
@@ -93,52 +135,53 @@ app.post("/api/createuser", async (req, res, next) => {
 
 // Updated /api/login endpoint to include bcrypt password comparison
 app.post("/api/login", async (req, res, next) => {
-  const { login, password } = req.body;
+	const { login, password } = req.body;
 
-  let error = "";
-  let user;
+	let error = "";
+	let user;
 
-  try {
-    const db = client.db("COP4331-G6-LP");
-    user = await db.collection("Users").findOne({ Email: login });
-    if (user) {
-      const passwordMatch = await bcrypt.compare(password, user.Password);
-      if (!passwordMatch) {
-        error = "Invalid credentials";
-        user = null; // Invalidate user if password does not match
-      }
-    } else {
-      error = "User not found";
-    }
-  } catch (e) {
-    error = e.toString();
-  }
+	try {
+		const db = conn.db("COP4331-G6-LP");
+		user = await db.collection("Users").findOne({ Email: login });
+		if (user) {
+			const passwordMatch = await bcrypt.compare(password, user.Password);
+			if (!passwordMatch) {
+				error = "Invalid credentials";
+				user = null; // Invalidate user if password does not match
+			}
+		} else {
+			error = "User not found";
+		}
+	}
+	catch (e) {
+		error = e.toString();
+	}
 
-  const ret = {
-    id: user ? user._id : -1,
-    firstName: user ? user.FirstName : "",
-    lastName: user ? user.LastName : "",
-    username: user ? user.Username : "",
-    error: error,
-  };
+	const ret = {
+		id: user ? user._id : -1,
+		firstName: user ? user.FirstName : "",
+		lastName: user ? user.LastName : "",
+		username: user ? user.Username : "",
+		error: error,
+	};
 
-  res.status(error ? 500 : 200).json(ret);
+	res.status(error ? 500 : 200).json(ret);
 });
 
 app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-  );
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PATCH, DELETE, OPTIONS"
-  );
-  next();
+	res.setHeader("Access-Control-Allow-Origin", "*");
+	res.setHeader(
+		"Access-Control-Allow-Headers",
+		"Origin, X-Requested-With, Content-Type, Accept, Authorization"
+	);
+	res.setHeader(
+		"Access-Control-Allow-Methods",
+		"GET, POST, PATCH, DELETE, OPTIONS"
+	);
+	next();
 });
 
 // app.listen(5000); // start Node + Express server on port 5000
 app.listen(PORT, () => {
-  console.log("Server listening on port " + PORT);
+	console.log("Server listening on port " + PORT);
 });
