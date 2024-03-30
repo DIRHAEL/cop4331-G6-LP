@@ -6,7 +6,6 @@ const path = require("path");
 const multer = require("multer");
 const ExifParser = require("exif-parser");
 const GridFsStorage = require("multer-gridfs-storage");
-const { MongoClient } = require("mongodb");
 const Grid = require("gridfs-stream");
 const PORT = process.env.PORT || 5000;
 const app = express();
@@ -25,21 +24,15 @@ if (process.env.NODE_ENV === "production") {
 // const uri = "mongodb+srv://thebeast:COP4331-G6@cop4331-g6-lp.rvnbxnv.mongodb.net/?retryWrites=true&w=majority&appName=COP4331-G6-LP";
 require("dotenv").config();
 const url = process.env.MONGODB_URI;
-const client = MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
-
+const MongoClient = require("mongodb").MongoClient;
+const client = new MongoClient(url);
+client.connect(console.log("mongodb connected"));
+const db = client.db("COP4331-G6-LP");
+gfs = Grid(db, MongoClient);
+gfs.collection("uploads");
+console.log("GridFS connected");
 let gfs;
 
-client.connect((err) => {
-	if (err) {
-		console.error("Failed to connect to MongoDB", err);
-		return;
-	}
-
-	const db = client.db("COP4331-G6-LP");
-	gfs = Grid(db, MongoClient);
-	gfs.collection("uploads");
-	console.log("GridFS connected");
-});
 
 // Create GridFS storage engine
 const storage = multer.memoryStorage();
