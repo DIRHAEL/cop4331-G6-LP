@@ -6,7 +6,7 @@ const path = require("path");
 const multer = require("multer");
 const ExifParser = require("exif-parser");
 const GridFsStorage = require("multer-gridfs-storage");
-const mongoose = require("mongoose");
+const { MongoClient } = require("mongodb");
 const Grid = require("gridfs-stream");
 const PORT = process.env.PORT || 5000;
 const app = express();
@@ -25,29 +25,24 @@ if (process.env.NODE_ENV === "production") {
 // const uri = "mongodb+srv://thebeast:COP4331-G6@cop4331-g6-lp.rvnbxnv.mongodb.net/?retryWrites=true&w=majority&appName=COP4331-G6-LP";
 require("dotenv").config();
 const url = process.env.MONGODB_URI;
-const conn = mongoose.createConnection(url, {
-	useNewUrlParser: true,
-	useUnifiedTopology: true,
-});
+const client = MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
 
 let gfs;
 
-conn.once("open", () => {
-	gfs = Grid(conn.db, mongoose.mongo);
+client.connect((err) => {
+	if (err) {
+		console.error("Failed to connect to MongoDB", err);
+		return;
+	}
+
+	const db = client.db("COP4331-G6-LP");
+	gfs = Grid(db, MongoClient);
 	gfs.collection("uploads");
 	console.log("GridFS connected");
 });
 
 // Create GridFS storage engine
-const storage = new GridFsStorage({
-	url: url,
-	file: (req, file) => {
-		return {
-			filename: file.originalname,
-			bucketName: "uploads",
-		};
-	},
-});
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // const MongoClient = require("mongodb").MongoClient;
@@ -69,7 +64,7 @@ app.post("/api/createuser", async (req, res, next) => {
 	let error = "";
 
 	try {
-		const db = conn.db("COP4331-G6-LP");
+		const db = client.db("COP4331-G6-LP");
 		// Check if email already exists
 		const emailExists = await db.collection("Users").findOne({ Email: email });
 		if (emailExists) {
@@ -109,7 +104,7 @@ app.post("/api/login", async (req, res, next) => {
 	let user;
 
 	try {
-		const db = conn.db("COP4331-G6-LP");
+		const db = client.db("COP4331-G6-LP");
 		user = await db.collection("Users").findOne({ Email: login });
 		if (user) {
 			const passwordMatch = await bcrypt.compare(password, user.Password);
@@ -159,7 +154,7 @@ app.post("/api/uploadimage", upload.single("image"), async (req, res) => {
 		};
 
 		// Save the new image document to the Images collection
-		const db = conn.db("COP4331-G6-LP");
+		const db = client.db("COP4331-G6-LP");
 		const result = await db.collection("Images").insertOne(newImage);
 
 		res.status(200).json({ success: true, image: newImage });
