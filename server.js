@@ -26,17 +26,17 @@ require("dotenv").config();
 const url = process.env.MONGODB_URI;
 const MongoClient = require("mongodb").MongoClient;
 const client = new MongoClient(url);
-client.connect(console.log("mongodb connected"));
-// const db = client.db("COP4331-G6-LP");
-// gfs = Grid(db, MongoClient);
-// gfs.collection("uploads");
-// console.log("GridFS connected");
 let gfs;
+client.connect(console.log("mongodb connected"));
+const db = client.db("COP4331-G6-LP");
+gfs = Grid(db, MongoClient);
+gfs.collection("uploads");
+console.log("GridFS connected");
 
 
 // Create GridFS storage engine
-// const storage = multer.memoryStorage();
-// const upload = multer({ storage });
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 // const MongoClient = require("mongodb").MongoClient;
 // const client = new MongoClient(url);
