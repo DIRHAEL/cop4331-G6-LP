@@ -26,9 +26,12 @@ require("dotenv").config();
 const url = process.env.MONGODB_URI;
 const MongoClient = require("mongodb").MongoClient;
 const client = new MongoClient(url);
-let gfs;
 client.connect(console.log("mongodb connected"));
+app.use(cors());
+app.use(bodyParser.json());
+
 const db = client.db("COP4331-G6-LP");
+let gfs;
 gfs = Grid(db, MongoClient);
 gfs.collection("uploads");
 console.log("GridFS connected");
@@ -41,8 +44,6 @@ const upload = multer({ storage });
 // const MongoClient = require("mongodb").MongoClient;
 // const client = new MongoClient(url);
 // client.connect(console.log("mongodb connected"));
-app.use(cors());
-app.use(bodyParser.json());
 
 
 app.post("/api/createuser", async (req, res, next) => {
