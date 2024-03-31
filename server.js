@@ -7,6 +7,7 @@ const multer = require("multer");
 const ExifParser = require("exif-parser");
 const GridFsStorage = require("multer-gridfs-storage");
 const Grid = require("gridfs-stream");
+const { MongoClient } = require("mongodb");
 const PORT = process.env.PORT || 5000;
 const app = express();
 app.set("port", process.env.PORT || 5000);
@@ -24,17 +25,24 @@ if (process.env.NODE_ENV === "production") {
 // const uri = "mongodb+srv://thebeast:COP4331-G6@cop4331-g6-lp.rvnbxnv.mongodb.net/?retryWrites=true&w=majority&appName=COP4331-G6-LP";
 require("dotenv").config();
 const url = process.env.MONGODB_URI;
-const MongoClient = require("mongodb").MongoClient;
+// const MongoClient = require("mongodb").MongoClient;
 const client = new MongoClient(url);
-client.connect(console.log("mongodb connected"));
+// client.connect(console.log("mongodb connected"));
+
+// const db = client.db("COP4331-G6-LP");
+client.connect(err => {
+	if (err) {
+		console.error("Failed to connect to MongoDB:", err);
+		return;
+	}
+	const db = client.db("COP4331-G6-LP");
+	gfs = Grid(db, MongoClient);
+	gfs.collection("uploads");
+	console.log("MongoDB connected");
+});
+
 app.use(cors());
 app.use(bodyParser.json());
-
-const db = client.db("COP4331-G6-LP");
-let gfs;
-gfs = Grid(db, MongoClient);
-gfs.collection("uploads");
-console.log("GridFS connected");
 
 
 // Create GridFS storage engine
@@ -128,6 +136,10 @@ app.post("/api/login", async (req, res, next) => {
 // Upload image route
 app.post("/api/uploadimage", upload.single("image"), async (req, res) => {
 	try {
+		if (!req.file) {
+			return res.status(400).json({ error: "No image file uploaded" });
+		}
+
 		// Extract additional information from request body
 		const { locationId, userId, description } = req.body;
 		const filename = req.file.filename;
@@ -136,11 +148,14 @@ app.post("/api/uploadimage", upload.single("image"), async (req, res) => {
 		const exifData = await parseExifData(req.file.buffer);
 		const { timestamp, latitude, longitude } = extractMetadata(exifData);
 
+		// Save the uploaded image to GridFS
+		const fileId = await saveImageToGridFS(req.file.buffer, filename);
+
 		// Create a new image document with the extracted information
 		const newImage = {
 			LocationID: locationId,
 			UserID: userId,
-			ImageURL: filename,
+			ImageURL: fileId, // Using fileId as ImageURL
 			Description: description,
 			Timestamp: timestamp || new Date(), // Use current time if timestamp not found in metadata
 			Latitude: latitude,
@@ -157,6 +172,22 @@ app.post("/api/uploadimage", upload.single("image"), async (req, res) => {
 		res.status(500).json({ error: "Failed to upload image" });
 	}
 });
+
+// Function to save the uploaded image to GridFS
+async function saveImageToGridFS(imageBuffer, filename) {
+	return new Promise((resolve, reject) => {
+		const writestream = gfs.createWriteStream({
+			filename: filename,
+		});
+		writestream.on("close", file => {
+			resolve(file._id);
+		});
+		writestream.on("error", error => {
+			reject(error);
+		});
+		writestream.end(imageBuffer);
+	});
+}
 
 // Function to parse image metadata using exif-parser
 function parseExifData(buffer) {
@@ -183,6 +214,7 @@ function extractMetadata(exifData) {
 
 	return { timestamp, latitude, longitude };
 }
+
 
 app.use((req, res, next) => {
 	res.setHeader("Access-Control-Allow-Origin", "*");
