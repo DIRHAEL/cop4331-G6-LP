@@ -37,28 +37,16 @@ client.connect(err => {
 	}
 	const db = client.db("COP4331-G6-LP");
 	gfs = Grid(db, MongoClient);
-	gfs.collection("Images");
+	gfs.collection("uploads");
 	console.log("MongoDB connected");
 });
 
-// Middleware
 app.use(cors());
 app.use(bodyParser.json());
 
-// Create a GridFS storage engine
-const storage = new GridFsStorage({
-	url: process.env.MONGODB_URI,
-	file: (req, file) => {
-	  return new Promise((resolve, reject) => {
-		const filename = file.originalname;
-		const fileInfo = {
-			filename: filename,
-			bucketName: 'Images' // Must match the name of the GridFS collection being used
-		};
-		resolve(fileInfo);
-	  });
-	}
-  });
+
+// Create GridFS storage engine
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // const MongoClient = require("mongodb").MongoClient;
