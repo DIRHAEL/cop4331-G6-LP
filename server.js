@@ -3,12 +3,14 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const path = require("path");
+const methodOverride = require("method-override");
 const multer = require("multer");
 const ExifParser = require("exif-parser");
 const GridFsStorage = require("multer-gridfs-storage");
 const Grid = require("gridfs-stream");
 const { MongoClient } = require("mongodb");
 const PORT = process.env.PORT || 5000;
+const imageRouter = require("./routes/image");
 const app = express();
 app.set("port", process.env.PORT || 5000);
 
@@ -24,34 +26,50 @@ if (process.env.NODE_ENV === "production") {
 // Your MongoDB connection string
 // const uri = "mongodb+srv://thebeast:COP4331-G6@cop4331-g6-lp.rvnbxnv.mongodb.net/?retryWrites=true&w=majority&appName=COP4331-G6-LP";
 require("dotenv").config();
-const url = process.env.MONGODB_URI;
-// const MongoClient = require("mongodb").MongoClient;
-const client = new MongoClient(url);
-// client.connect(console.log("mongodb connected"));
 
-// const db = client.db("COP4331-G6-LP");
-client.connect(err => {
-	if (err) {
-		console.error("Failed to connect to MongoDB:", err);
-		return;
-	}
-	const db = client.db("COP4331-G6-LP");
-	gfs = Grid(db, MongoClient);
-	gfs.collection("uploads");
-	console.log("MongoDB connected");
-});
-
+// Middleware
 app.use(cors());
 app.use(bodyParser.json());
 
+// const db = client.db("COP4331-G6-LP");
+const mongoose = require("mongoose");
+mongoose.Promise = require("bluebird");
 
-// Create GridFS storage engine
-const storage = multer.memoryStorage();
+const url = process.env.MONGODB_URI;
+const client = mongoose.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
+
+connect.then(() => {
+	console.log("Connected to database");
+}, (err) => console.log(err));
+
+
+// Create a GridFS storage engine
+const storage = new GridFsStorage({
+	url: config.MONGODB_URI,
+	file: (req, file) => {
+		return new Promise((resolve, reject) => {
+			// encrypt filename before sorting
+			crypto.randomBytes(16, (err, buf) => {
+				if (err) {
+					return reject(err);
+				}
+				const filename = buf.toString("hex") + path.extname(file.originalname);
+				const fileInfo = {
+					filename: filename,
+					bucketName: "Images",
+				};
+				resolve(fileInfo);
+			})
+		})
+	}
+})
 const upload = multer({ storage });
 
 // const MongoClient = require("mongodb").MongoClient;
 // const client = new MongoClient(url);
 // client.connect(console.log("mongodb connected"));
+
+app.use('/', imageRouter(upload));
 
 
 app.post("/api/createuser", async (req, res, next) => {
