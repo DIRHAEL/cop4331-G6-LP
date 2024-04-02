@@ -45,7 +45,7 @@ connect.then(() => {
 
 // Create a GridFS storage engine
 const storage = new GridFsStorage({
-	url: config.MONGODB_URI,
+	url: process.env.MONGODB_URI,
 	file: (req, file) => {
 		return new Promise((resolve, reject) => {
 			// encrypt filename before sorting
