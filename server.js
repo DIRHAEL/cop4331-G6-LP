@@ -6,6 +6,7 @@ const GridFsStorage = require("multer-gridfs-storage");
 const Grid = require("gridfs-stream");
 const ExifImage = require("exif").ExifImage;
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const path = require("path");
 const PORT = process.env.PORT || 5000;
 const app = express();
@@ -34,103 +35,103 @@ app.use(bodyParser.json());
 
 let gfs;
 
-// client.once('open', () => {
-//   // Init stream
-//   gfs = Grid(client.db, MongoClient);
-// });
+client.once('open', () => {
+	// Init stream
+	gfs = Grid(client.db, MongoClient);
+});
 
-// // Create storage engine
-// const storage = new GridFsStorage({
-//   url: process.env.MONGODB_URI,
-//   file: (req, file) => {
-//     return new Promise((resolve, reject) => {
-//       crypto.randomBytes(16, (err, buf) => {
-//         if (err) {
-//           return reject(err);
-//         }
-//         const filename = buf.toString('hex') + path.extname(file.originalname);
-//         const fileInfo = {
-//           filename: filename,
-//           bucketName: 'images'
-//         };
-//         resolve(fileInfo);
-//       });
-//     });
-//   }
-// });
+// Create storage engine
+const storage = new GridFsStorage({
+	url: process.env.MONGODB_URI,
+	file: (req, file) => {
+		return new Promise((resolve, reject) => {
+			crypto.randomBytes(16, (err, buf) => {
+				if (err) {
+					return reject(err);
+				}
+				const filename = buf.toString('hex') + path.extname(file.originalname);
+				const fileInfo = {
+					filename: filename,
+					bucketName: 'images'
+				};
+				resolve(fileInfo);
+			});
+		});
+	}
+});
 
-const upload = multer({ 
-  storage,
-  fileFilter: function(req, file, cb){
-    checkFileType(file, cb);
-  }
+const upload = multer({
+	storage,
+	fileFilter: function (req, file, cb) {
+		checkFileType(file, cb);
+	}
 });
 
 // Check file type
-function checkFileType(file, cb){
-  // Allowed ext
-  const filetypes = /jpeg|jpg|png|gif/;
-  // Check ext
-  const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-  // Check mime
-  const mimetype = filetypes.test(file.mimetype);
+function checkFileType(file, cb) {
+	// Allowed ext
+	const filetypes = /jpeg|jpg|png|gif/;
+	// Check ext
+	const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+	// Check mime
+	const mimetype = filetypes.test(file.mimetype);
 
-  if(mimetype && extname){
-    return cb(null,true);
-  } else {
-    cb('Error: Images Only!');
-  }
+	if (mimetype && extname) {
+		return cb(null, true);
+	} else {
+		cb('Error: Images Only!');
+	}
 }
 
 // @route POST /upload
 // @desc  Uploads file to DB
 app.post('/upload', upload.array('file', 10), async (req, res) => {
-  if (!req.files) {
-    return res.status(400).json({ error: 'No files were uploaded.' });
-  }
+	if (!req.files) {
+		return res.status(400).json({ error: 'No files were uploaded.' });
+	}
 
-  const { username } = req.body;
+	const { username } = req.body;
 
-  try {
-    const db = client.db("COP4331-G6-LP");
+	try {
+		const db = client.db("COP4331-G6-LP");
 
-    // Find the user
-    const user = await db.collection("Users").findOne({ Username: username });
-    if (!user) {
-      return res.status(400).json({ error: 'User not found.' });
-    }
+		// Find the user
+		const user = await db.collection("Users").findOne({ Username: username });
+		if (!user) {
+			return res.status(400).json({ error: 'User not found.' });
+		}
 
-    // Link the files to the user and location
-    for (let file of req.files) {
-      // Read the image metadata
-      new ExifImage({ image : file.path }, async function (error, exifData) {
-        if (error) {
-          console.log('Error: ' + error.message);
-        } else {
-          // Get the GPS coordinates
-          const { GPSLatitude, GPSLongitude } = exifData.gps;
-          const locationName = `${GPSLatitude}, ${GPSLongitude}`;
+		// Link the files to the user and location
+		for (let file of req.files) {
+			// Read the image metadata
+			new ExifImage({ image: file.path }, async function (error, exifData) {
+				if (error) {
+					console.log('Error: ' + error.message);
+				} else {
+					// Get the GPS coordinates
+					const { GPSLatitude, GPSLongitude } = exifData.gps;
+					const locationName = `${GPSLatitude}, ${GPSLongitude}`;
 
-          // Find or create the location
-          let location = await db.collection("Locations").findOne({ Name: locationName });
-          if (!location) {
-            location = await db.collection("Locations").insertOne({ Name: locationName });
-          }
+					// Find or create the location
+					let location = await db.collection("Locations").findOne({ Name: locationName });
+					if (!location) {
+						location = await db.collection("Locations").insertOne({ Name: locationName });
+					}
 
-          const image = {
-            filename: file.filename,
-            userId: user._id,
-            locationId: location._id
-          };
-          await db.collection("Images").insertOne(image);
-        }
-      });
-    }
+					const image = {
+						filename: file.filename,
+						userId: user._id,
+						locationId: location._id
+					};
+					await db.collection("Images").insertOne(image);
+				}
+			});
+		}
 
-    res.json({ files: req.files });
-  } catch (e) {
-    res.status(500).json({ error: e.toString() });
-  }
+		res.json({ files: req.files });
+	} catch (e) {
+		res.status(500).json({ error: e.toString() });
+	}
 });
 
 
