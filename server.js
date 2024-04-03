@@ -3,16 +3,15 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const path = require("path");
-const methodOverride = require("method-override");
 const multer = require("multer");
 const ExifParser = require("exif-parser");
 const GridFsStorage = require("multer-gridfs-storage");
 const Grid = require("gridfs-stream");
 const { MongoClient } = require("mongodb");
 const PORT = process.env.PORT || 5000;
-const imageRouter = require("./routes/image");
 const app = express();
 app.set("port", process.env.PORT || 5000);
+const initRoutes = require("./routes");
 
 // Server static assets if in production
 if (process.env.NODE_ENV === "production") {
@@ -23,53 +22,23 @@ if (process.env.NODE_ENV === "production") {
 	});
 }
 
+var corsOptions = {
+	origin: "https://cop4331-g6-lp-c6d624829cab.herokuapp.com/"
+  };
+
 // Your MongoDB connection string
 // const uri = "mongodb+srv://thebeast:COP4331-G6@cop4331-g6-lp.rvnbxnv.mongodb.net/?retryWrites=true&w=majority&appName=COP4331-G6-LP";
 require("dotenv").config();
-
-// Middleware
-app.use(cors());
-app.use(bodyParser.json());
-
-// const db = client.db("COP4331-G6-LP");
-const mongoose = require("mongoose");
-mongoose.Promise = require("bluebird");
-
 const url = process.env.MONGODB_URI;
-const client = mongoose.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
-
-connect.then(() => {
-	console.log("Connected to database");
-}, (err) => console.log(err));
+const MongoClient = require("mongodb").MongoClient;
+const client = new MongoClient(url);
+client.connect(console.log("mongodb connected"));
 
 
-// Create a GridFS storage engine
-const storage = new GridFsStorage({
-	url: process.env.MONGODB_URI,
-	file: (req, file) => {
-		return new Promise((resolve, reject) => {
-			// encrypt filename before sorting
-			crypto.randomBytes(16, (err, buf) => {
-				if (err) {
-					return reject(err);
-				}
-				const filename = buf.toString("hex") + path.extname(file.originalname);
-				const fileInfo = {
-					filename: filename,
-					bucketName: "Images",
-				};
-				resolve(fileInfo);
-			})
-		})
-	}
-})
-const upload = multer({ storage });
-
-// const MongoClient = require("mongodb").MongoClient;
-// const client = new MongoClient(url);
-// client.connect(console.log("mongodb connected"));
-
-app.use('/', imageRouter(upload));
+app.use(cors(corsOptions));
+app.use(express.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+initRoutes(app);
 
 
 app.post("/api/createuser", async (req, res, next) => {
@@ -151,87 +120,87 @@ app.post("/api/login", async (req, res, next) => {
 	res.status(error ? 500 : 200).json(ret);
 });
 
-// Upload image route
-app.post("/api/uploadimage", upload.single("image"), async (req, res) => {
-	try {
-		if (!req.file) {
-			return res.status(400).json({ error: "No image file uploaded" });
-		}
+// // Upload image route
+// app.post("/api/uploadimage", upload.single("image"), async (req, res) => {
+// 	try {
+// 		if (!req.file) {
+// 			return res.status(400).json({ error: "No image file uploaded" });
+// 		}
 
-		// Extract additional information from request body
-		const { locationId, userId, description } = req.body;
-		const filename = req.file.filename;
+// 		// Extract additional information from request body
+// 		const { locationId, userId, description } = req.body;
+// 		const filename = req.file.filename;
 
-		// Parse image metadata to extract timestamp, latitude, and longitude
-		const exifData = await parseExifData(req.file.buffer);
-		const { timestamp, latitude, longitude } = extractMetadata(exifData);
+// 		// Parse image metadata to extract timestamp, latitude, and longitude
+// 		const exifData = await parseExifData(req.file.buffer);
+// 		const { timestamp, latitude, longitude } = extractMetadata(exifData);
 
-		// Save the uploaded image to GridFS
-		const fileId = await saveImageToGridFS(req.file.buffer, filename);
+// 		// Save the uploaded image to GridFS
+// 		const fileId = await saveImageToGridFS(req.file.buffer, filename);
 
-		// Create a new image document with the extracted information
-		const newImage = {
-			LocationID: locationId,
-			UserID: userId,
-			ImageURL: fileId, // Using fileId as ImageURL
-			Description: description,
-			Timestamp: timestamp || new Date(), // Use current time if timestamp not found in metadata
-			Latitude: latitude,
-			Longitude: longitude,
-		};
+// 		// Create a new image document with the extracted information
+// 		const newImage = {
+// 			LocationID: locationId,
+// 			UserID: userId,
+// 			ImageURL: fileId, // Using fileId as ImageURL
+// 			Description: description,
+// 			Timestamp: timestamp || new Date(), // Use current time if timestamp not found in metadata
+// 			Latitude: latitude,
+// 			Longitude: longitude,
+// 		};
 
-		// Save the new image document to the Images collection
-		const db = client.db("COP4331-G6-LP");
-		const result = await db.collection("Images").insertOne(newImage);
+// 		// Save the new image document to the Images collection
+// 		const db = client.db("COP4331-G6-LP");
+// 		const result = await db.collection("Images").insertOne(newImage);
 
-		res.status(200).json({ success: true, image: newImage });
-	} catch (error) {
-		console.error("Error uploading image:", error);
-		res.status(500).json({ error: "Failed to upload image" });
-	}
-});
+// 		res.status(200).json({ success: true, image: newImage });
+// 	} catch (error) {
+// 		console.error("Error uploading image:", error);
+// 		res.status(500).json({ error: "Failed to upload image" });
+// 	}
+// });
 
-// Function to save the uploaded image to GridFS
-async function saveImageToGridFS(imageBuffer, filename) {
-	return new Promise((resolve, reject) => {
-		const writestream = gfs.createWriteStream({
-			filename: filename,
-		});
-		writestream.on("close", file => {
-			resolve(file._id);
-		});
-		writestream.on("error", error => {
-			reject(error);
-		});
-		writestream.end(imageBuffer);
-	});
-}
+// // Function to save the uploaded image to GridFS
+// async function saveImageToGridFS(imageBuffer, filename) {
+// 	return new Promise((resolve, reject) => {
+// 		const writestream = gfs.createWriteStream({
+// 			filename: filename,
+// 		});
+// 		writestream.on("close", file => {
+// 			resolve(file._id);
+// 		});
+// 		writestream.on("error", error => {
+// 			reject(error);
+// 		});
+// 		writestream.end(imageBuffer);
+// 	});
+// }
 
-// Function to parse image metadata using exif-parser
-function parseExifData(buffer) {
-	return new Promise((resolve, reject) => {
-		try {
-			const parser = ExifParser.create(buffer);
-			const exifData = parser.parse();
-			resolve(exifData);
-		} catch (error) {
-			reject(error);
-		}
-	});
-}
+// // Function to parse image metadata using exif-parser
+// function parseExifData(buffer) {
+// 	return new Promise((resolve, reject) => {
+// 		try {
+// 			const parser = ExifParser.create(buffer);
+// 			const exifData = parser.parse();
+// 			resolve(exifData);
+// 		} catch (error) {
+// 			reject(error);
+// 		}
+// 	});
+// }
 
-// Function to extract relevant metadata (timestamp, latitude, longitude) from parsed exif data
-function extractMetadata(exifData) {
-	let timestamp, latitude, longitude;
+// // Function to extract relevant metadata (timestamp, latitude, longitude) from parsed exif data
+// function extractMetadata(exifData) {
+// 	let timestamp, latitude, longitude;
 
-	if (exifData && exifData.tags) {
-		timestamp = exifData.tags.DateTimeOriginal || null;
-		latitude = exifData.tags.GPSLatitude || null;
-		longitude = exifData.tags.GPSLongitude || null;
-	}
+// 	if (exifData && exifData.tags) {
+// 		timestamp = exifData.tags.DateTimeOriginal || null;
+// 		latitude = exifData.tags.GPSLatitude || null;
+// 		longitude = exifData.tags.GPSLongitude || null;
+// 	}
 
-	return { timestamp, latitude, longitude };
-}
+// 	return { timestamp, latitude, longitude };
+// }
 
 
 app.use((req, res, next) => {
