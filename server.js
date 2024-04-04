@@ -1,12 +1,13 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
+const AWS = require("aws-sdk");
 const multer = require("multer");
-const GridFsStorage = require("multer-gridfs-storage");
-const Grid = require("gridfs-stream");
+const multerS3 = require("multer-s3");
 const ExifImage = require("exif").ExifImage;
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const sharp = require("sharp");
 const path = require("path");
 const PORT = process.env.PORT || 5000;
 const app = express();
@@ -33,58 +34,30 @@ client.connect(console.log("mongodb connected"));
 app.use(cors());
 app.use(bodyParser.json());
 
-let gfs;
 
-client.once('open', () => {
-	// Init stream
-	gfs = Grid(client.db, MongoClient);
+AWS.config.update({
+	accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+	secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+	region: process.env.AWS_REGION,
 });
 
-// Create storage engine
-const storage = new GridFsStorage({
-	url: process.env.MONGODB_URI,
-	file: (req, file) => {
-		return new Promise((resolve, reject) => {
-			crypto.randomBytes(16, (err, buf) => {
-				if (err) {
-					return reject(err);
-				}
-				const filename = buf.toString('hex') + path.extname(file.originalname);
-				const fileInfo = {
-					filename: filename,
-					bucketName: 'images'
-				};
-				resolve(fileInfo);
-			});
-		});
-	}
-});
+const s3 = new AWS.S3();
 
 const upload = multer({
-	storage,
-	fileFilter: function (req, file, cb) {
-		checkFileType(file, cb);
-	}
+	storage: multerS3({
+		s3: s3,
+		bucket: 'mindmapimages',
+		acl: 'public-read',
+		metadata: async function (req, file, cb) {
+			const metadata = await sharp(file.stream).metadata();
+			cb(null, { fieldName: file.fieldname, ...metadata });
+		},
+		key: function (req, file, cb) {
+			cb(null, Date.now().toString())
+		}
+	})
 });
 
-// Check file type
-function checkFileType(file, cb) {
-	// Allowed ext
-	const filetypes = /jpeg|jpg|png|gif/;
-	// Check ext
-	const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-	// Check mime
-	const mimetype = filetypes.test(file.mimetype);
-
-	if (mimetype && extname) {
-		return cb(null, true);
-	} else {
-		cb('Error: Images Only!');
-	}
-}
-
-// @route POST /upload
-// @desc  Uploads file to DB
 app.post('/upload', upload.array('file', 10), async (req, res) => {
 	if (!req.files) {
 		return res.status(400).json({ error: 'No files were uploaded.' });
@@ -104,28 +77,23 @@ app.post('/upload', upload.array('file', 10), async (req, res) => {
 		// Link the files to the user and location
 		for (let file of req.files) {
 			// Read the image metadata
-			new ExifImage({ image: file.path }, async function (error, exifData) {
-				if (error) {
-					console.log('Error: ' + error.message);
-				} else {
-					// Get the GPS coordinates
-					const { GPSLatitude, GPSLongitude } = exifData.gps;
-					const locationName = `${GPSLatitude}, ${GPSLongitude}`;
+			const metadata = await sharp(file.buffer).metadata();
+			const { latitude, longitude } = metadata.exif.gps;
 
-					// Find or create the location
-					let location = await db.collection("Locations").findOne({ Name: locationName });
-					if (!location) {
-						location = await db.collection("Locations").insertOne({ Name: locationName });
-					}
+			const locationName = `${latitude}, ${longitude}`;
 
-					const image = {
-						filename: file.filename,
-						userId: user._id,
-						locationId: location._id
-					};
-					await db.collection("Images").insertOne(image);
-				}
-			});
+			// Find or create the location
+			let location = await db.collection("Locations").findOne({ Name: locationName });
+			if (!location) {
+				location = await db.collection("Locations").insertOne({ Name: locationName });
+			}
+
+			const image = {
+				url: file.location, // URL of the image stored in S3
+				userId: user._id,
+				locationId: location._id
+			};
+			await db.collection("Images").insertOne(image);
 		}
 
 		res.json({ files: req.files });
@@ -133,7 +101,6 @@ app.post('/upload', upload.array('file', 10), async (req, res) => {
 		res.status(500).json({ error: e.toString() });
 	}
 });
-
 
 app.post("/api/createuser", async (req, res, next) => {
 	const { firstName, lastName, username, email, password } = req.body;
