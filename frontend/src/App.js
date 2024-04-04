@@ -5,6 +5,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import LoginPage from "./pages/LoginPage";
 import HomePage from "./pages/HomePage";
+import Dashboard from "./components/Dashboard"; 
+
 
 function App() {
   return (
@@ -12,6 +14,8 @@ function App() {
       <Routes>
         <Route path="/" index element={<LoginPage />} />
         <Route path="/home" index element={<HomePage />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+
         {/* <Route path="/cards" index element={<CardPage />} /> */}
       </Routes>
     </BrowserRouter>
