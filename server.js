@@ -55,7 +55,8 @@ const upload = multer({
 		key: function (req, file, cb) {
 			cb(null, Date.now().toString())
 		}
-	})
+	}),
+	limits: { fileSize: 10000000 }, // 10MB
 });
 
 app.post('/upload', upload.array('file', 10), async (req, res) => {
