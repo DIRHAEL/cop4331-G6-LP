@@ -1,5 +1,8 @@
 import React from "react";
 import "./App.css";
+import "./Dashboard.css";
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'leaflet/dist/leaflet.css';
 
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 

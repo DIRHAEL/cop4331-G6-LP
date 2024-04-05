@@ -4,6 +4,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { Navbar, Nav, Container } from 'react-bootstrap';
 import MapComponent from './MapComponent';
 import Sidebar from './Sidebar';
+import 'leaflet/dist/leaflet.css';
+import 'bootstrap/dist/css/bootstrap.min.css';
+
 
 function Dashboard() {
   const [markers, setMarkers] = useState([]);
@@ -33,7 +36,7 @@ function Dashboard() {
   };
 
   return (
-    <div className="App">
+    <div className="Dashboard">
       <Navbar bg="light" expand="lg" className="mb-3">
         <Container fluid>
           <Navbar.Brand href="#" className="font-weight-bold">Map App</Navbar.Brand>
