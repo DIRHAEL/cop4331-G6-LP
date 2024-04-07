@@ -58,30 +58,55 @@ app.get('/posts', async (req, res) => {
 });
 
 
-app.post('/api/posts', upload.single('image'), async (req, res) => {
+app.post('/api/posts', upload.array('image', 10), async (req, res) => {
 	try {
-		const file = req.file;
+		const files = req.files;
 		const caption = req.body.caption;
-		const imageName = generateFileName();
-
-		const fileBuffer = await sharp(file.buffer)
-			.resize({ height: 1920, width: 1080, fit: "contain" })
-			.toBuffer();
-
-		await uploadFile(fileBuffer, imageName, file.mimetype);
-
+		const username = req.body.username;
 		const db = client.db('COP4331-G6-LP');
-		const post = await db.collection('Images').insertOne({
-			imageName,
-			caption,
-		});
+		const postsCollection = db.collection('Images');
 
-		res.status(201).send(post);
+		for (let file of files) {
+			const imageName = generateFileName();
+
+			const fileBuffer = await sharp(file.buffer)
+				.resize({ height: 1920, width: 1080, fit: "contain" })
+				.toBuffer();
+
+			// Extract EXIF data
+			const metadata = await sharp(file.buffer).metadata();
+			const exifData = metadata.exif;
+			let latitude, longitude;
+			if (exifData && exifData.gps) {
+				latitude = exifData.gps.GPSLatitude;
+				longitude = exifData.gps.GPSLongitude;
+			} else {
+				// Handle the case where there is no EXIF data
+				console.log('No EXIF data found.');
+				latitude = null;
+				longitude = null;
+			}
+
+			await uploadFile(fileBuffer, imageName, file.mimetype);
+
+			const post = await postsCollection.insertOne({
+				imageName,
+				caption,
+				username,
+				date: new Date(),
+				latitude,  // Add latitude to the document
+				longitude, // Add longitude to the document
+				// Add other fields as needed
+			});
+		}
+
+		res.status(201).send('All images have been uploaded and added to the database.');
 	} catch (e) {
 		console.error(e);
 		res.status(500).send('An error occurred while creating the post.');
 	}
 });
+
 
 
 app.delete("/api/posts/:id", async (req, res) => {
