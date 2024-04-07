@@ -7,7 +7,6 @@ const sharp = require('sharp')
 const bcrypt = require('bcryptjs')
 const sharp = require('sharp')
 const path = require('path')
-require('dotenv').config()
 const PORT = process.env.PORT || 5000
 
 // import { uploadFile, deleteFile, getObjectSignedUrl } from './s3.js'
@@ -23,6 +22,7 @@ if (process.env.NODE_ENV === 'production') {
 	});
 }
 
+require('dotenv').config()
 const url = process.env.MONGODB_URI;
 const MongoClient = require('mongodb').MongoClient
 const client = new MongoClient(url)
