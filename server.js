@@ -10,6 +10,23 @@ const crypto = require("crypto");
 const sharp = require("sharp");
 const path = require("path");
 const PORT = process.env.PORT || 5000;
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+
+const randomImageName = (bytes = 32) => crypto.randomBytes().toString('hex')
+
+const bucketName = process.env.AWS_BUCKET_NAME;
+const bucketRegion = process.env.AWS_REGION;
+const accessKey = process.env.AWS_ACCESS_KEY_ID;
+const secretKey = process.env.AWS_SECRET_ACCESS_KEY;
+
+const s3 = new S3Client({
+	credentials: {
+		accessKeyId: accessKey,
+		secretAccessKey: secretKey,
+	},
+	region: bucketRegion
+});
+
 const app = express();
 app.set("port", process.env.PORT || 5000);
 // For Heroku deployment
@@ -34,74 +51,51 @@ client.connect(console.log("mongodb connected"));
 app.use(cors());
 app.use(bodyParser.json());
 
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
-AWS.config.update({
-	accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-	secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-	region: process.env.AWS_REGION,
-});
+upload.single('image');
 
-const s3 = new AWS.S3();
 
-const upload = multer({
-	storage: multerS3({
-		s3: s3,
-		bucket: 'mindmapimages',
-		acl: 'public-read',
-		metadata: async function (req, file, cb) {
-			const metadata = await sharp(file.stream).metadata();
-			cb(null, { fieldName: file.fieldname, ...metadata });
-		},
-		key: function (req, file, cb) {
-			cb(null, Date.now().toString())
-		}
-	}),
-	limits: { fileSize: 10000000 }, // 10MB
-});
+app.get ('/api/images', async (req, res) => {
+	const images = await db.collection('Images').findMany({orderBy: [{ created: 'desc' }]})
+	res.send(images)
+})
 
-app.post('/upload', upload.array('file', 10), async (req, res) => {
-	if (!req.files) {
-		return res.status(400).json({ error: 'No files were uploaded.' });
+app.post('/api/images', upload.single('image'), async (req, res) => {
+	console.log("req.body", req.body)
+	console.log("req.file", req.file)
+
+	// resize image
+	const buffer = await sharp(req.file.buffer).resize({height: 1920, width: 1080, fit: "contain"}).toBuffer()
+
+	const imageName = randomImageName()
+	const params = {
+		Bucket: bucketName,
+		Key: imageName,
+		Body: buffer,
+		ContentType: req.file.mimetype,
 	}
+	
+	const command = new PutObjectCommand(params)
+	await s3.send(command)
 
-	const { username } = req.body;
+	const db = client.db("COP4331-G6-LP");
 
-	try {
-		const db = client.db("COP4331-G6-LP");
+	// save image to database
+	const post = await db.collection('Images').insertOne({
+		imageName: imageName,
+		caption: req.body.caption,
+	})
 
-		// Find the user
-		const user = await db.collection("Users").findOne({ Username: username });
-		if (!user) {
-			return res.status(400).json({ error: 'User not found.' });
-		}
+	
+	res.send(post)
+})
 
-		// Link the files to the user and location
-		for (let file of req.files) {
-			// Read the image metadata
-			const metadata = await sharp(file.buffer).metadata();
-			const { latitude, longitude } = metadata.exif.gps;
-
-			const locationName = `${latitude}, ${longitude}`;
-
-			// Find or create the location
-			let location = await db.collection("Locations").findOne({ Name: locationName });
-			if (!location) {
-				location = await db.collection("Locations").insertOne({ Name: locationName });
-			}
-
-			const image = {
-				url: file.location, // URL of the image stored in S3
-				userId: user._id,
-				locationId: location._id
-			};
-			await db.collection("Images").insertOne(image);
-		}
-
-		res.json({ files: req.files });
-	} catch (e) {
-		res.status(500).json({ error: e.toString() });
-	}
-});
+app.delete("/api/images/:id", async (req, res) => {
+	const id = req.params.id
+	res.send({})
+})
 
 app.post("/api/createuser", async (req, res, next) => {
 	const { firstName, lastName, username, email, password } = req.body;
