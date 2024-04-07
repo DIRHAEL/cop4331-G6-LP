@@ -5,13 +5,12 @@ const bodyParser = require('body-parser')
 const cors = require('cors')
 const sharp = require('sharp')
 const bcrypt = require('bcryptjs')
-const crypto = require('crypto')
 const sharp = require('sharp')
 const path = require('path')
 require('dotenv').config()
 const PORT = process.env.PORT || 5000
 
-import { uploadFile, deleteFile, getObjectSignedUrl } from './s3.js'
+// import { uploadFile, deleteFile, getObjectSignedUrl } from './s3.js'
 
 const app = express()
 app.set('port', process.env.PORT || 5000)
