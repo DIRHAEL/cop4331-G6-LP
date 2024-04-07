@@ -1,101 +1,112 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const cors = require("cors");
-const AWS = require("aws-sdk");
-const multer = require("multer");
-const multerS3 = require("multer-s3");
-const ExifImage = require("exif").ExifImage;
-const bcrypt = require("bcryptjs");
-const crypto = require("crypto");
-const sharp = require("sharp");
-const path = require("path");
-const PORT = process.env.PORT || 5000;
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+const express = require('express')
 
-const randomImageName = (bytes = 32) => crypto.randomBytes().toString('hex')
+const multer = require('multer')
+const bodyParser = require('body-parser')
+const cors = require('cors')
+const sharp = require('sharp')
+const bcrypt = require('bcryptjs')
+const crypto = require('crypto')
+const sharp = require('sharp')
+const path = require('path')
+require('dotenv').config()
+const PORT = process.env.PORT || 5000
 
-const bucketName = process.env.AWS_BUCKET_NAME;
-const bucketRegion = process.env.AWS_REGION;
-const accessKey = process.env.AWS_ACCESS_KEY_ID;
-const secretKey = process.env.AWS_SECRET_ACCESS_KEY;
+import { uploadFile, deleteFile, getObjectSignedUrl } from './s3.js'
 
-const s3 = new S3Client({
-	credentials: {
-		accessKeyId: accessKey,
-		secretAccessKey: secretKey,
-	},
-	region: bucketRegion
-});
-
-const app = express();
-app.set("port", process.env.PORT || 5000);
-// For Heroku deployment
-
-// Server static assets if in production
-if (process.env.NODE_ENV === "production") {
+const app = express()
+app.set('port', process.env.PORT || 5000)
+if (process.env.NODE_ENV === 'production') {
 	// Set static folder
-	app.use(express.static("frontend/build"));
+	app.use(express.static('frontend/build'))
 
-	app.get("*", (req, res) => {
-		res.sendFile(path.resolve(__dirname, "frontend", "build", "index.html"));
+	app.get('*', (req, res) => {
+		res.sendFile(path.resolve(__dirname, 'frontend', 'build', 'index.html'))
 	});
 }
 
-// Your MongoDB connection string
-// const uri = "mongodb+srv://thebeast:COP4331-G6@cop4331-g6-lp.rvnbxnv.mongodb.net/?retryWrites=true&w=majority&appName=COP4331-G6-LP";
-require("dotenv").config();
-const url = process.env.MONGODB_URI; // storing into environmental
-const MongoClient = require("mongodb").MongoClient;
-const client = new MongoClient(url);
-client.connect(console.log("mongodb connected"));
-app.use(cors());
-app.use(bodyParser.json());
+const url = process.env.MONGODB_URI;
+const MongoClient = require('mongodb').MongoClient
+const client = new MongoClient(url)
+client.connect(console.log('mongodb connected'))
+app.use(cors())
+app.use(bodyParser.json())
 
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const storage = multer.memoryStorage()
+const upload = multer({ storage: storage })
 
-upload.single('image');
+const generateFileName = (bytes = 32) => crypto.randomBytes(bytes).toString('hex')
 
+app.get('/posts', async (req, res) => {
+	try 
+	{
+		const db = client.db('COP4331-G6-LP');
+		const posts = await db.collection('Images').find().sort({ created: -1 }).toArray();
 
-app.get ('/api/images', async (req, res) => {
-	const images = await db.collection('Images').findMany({orderBy: [{ created: 'desc' }]})
-	res.send(images)
-})
+		for (let post of posts) {
+			post.imageUrl = await getObjectSignedUrl(post.imageName);
+		}
 
-app.post('/api/images', upload.single('image'), async (req, res) => {
-	console.log("req.body", req.body)
-	console.log("req.file", req.file)
-
-	// resize image
-	const buffer = await sharp(req.file.buffer).resize({height: 1920, width: 1080, fit: "contain"}).toBuffer()
-
-	const imageName = randomImageName()
-	const params = {
-		Bucket: bucketName,
-		Key: imageName,
-		Body: buffer,
-		ContentType: req.file.mimetype,
+		res.send(posts);
+	} 
+	catch (e) 
+	{
+		console.error(e);
+		res.status(500).send('An error occurred while fetching posts.');
 	}
-	
-	const command = new PutObjectCommand(params)
-	await s3.send(command)
+});
 
-	const db = client.db("COP4331-G6-LP");
 
-	// save image to database
-	const post = await db.collection('Images').insertOne({
-		imageName: imageName,
-		caption: req.body.caption,
-	})
+app.post('/api/posts', upload.single('image'), async (req, res) => {
+    try {
+        const file = req.file;
+        const caption = req.body.caption;
+        const imageName = generateFileName();
 
-	
-	res.send(post)
-})
+        const fileBuffer = await sharp(file.buffer)
+            .resize({ height: 1920, width: 1080, fit: "contain" })
+            .toBuffer();
 
-app.delete("/api/images/:id", async (req, res) => {
-	const id = req.params.id
-	res.send({})
-})
+        await uploadFile(fileBuffer, imageName, file.mimetype);
+
+        const db = client.db('COP4331-G6-LP');
+        const post = await db.collection('Images').insertOne({
+            imageName,
+            caption,
+        });
+
+        res.status(201).send(post);
+    } catch (e) {
+        console.error(e);
+        res.status(500).send('An error occurred while creating the post.');
+    }
+});
+
+
+app.delete("/api/posts/:id", async (req, res) => {
+    try {
+        const id = req.params.id;
+        const db = client.db('COP4331-G6-LP');
+        const postsCollection = db.collection('Images');
+
+        // Find the post
+        const post = await postsCollection.findOne({ _id: new mongodb.ObjectID(id) });
+        if (!post) {
+            return res.status(404).send('Post not found.');
+        }
+
+        // Delete the image from S3
+        await deleteFile(post.imageName);
+
+        // Delete the post from the database
+        await postsCollection.deleteOne({ _id: new mongodb.ObjectID(id) });
+
+        res.send(post);
+    } catch (e) {
+        console.error(e);
+        res.status(500).send('An error occurred while deleting the post.');
+    }
+});
+
 
 app.post("/api/createuser", async (req, res, next) => {
 	const { firstName, lastName, username, email, password } = req.body;
