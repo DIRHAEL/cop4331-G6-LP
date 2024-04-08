@@ -40,29 +40,43 @@ const upload = multer({ storage: storage })
 
 const generateFileName = (bytes = 32) => crypto.randomBytes(bytes).toString('hex')
 
-app.get('/posts', async (req, res) => {
-	try {
-		const db = client.db('COP4331-G6-LP');
-		const posts = await db.collection('Images').find().sort({ created: -1 }).toArray();
+/////////////// IMAGE ENDPOINTS ///////////////
 
-		for (let post of posts) {
-			post.imageUrl = await getObjectSignedUrl(post.imageName);
-		}
+// Fetch Images Endpoint
+app.get('/posts/:userId/:locationId?', async (req, res) => {
+    try {
+        const username = req.params.userId;
+        const locationId = req.params.locationId;
+        const db = client.db('COP4331-G6-LP');
+        const query = { Username: username };
 
-		res.send(posts);
-	}
-	catch (e) {
-		console.error(e);
-		res.status(500).send('An error occurred while fetching posts.');
-	}
+        // If a locationId is provided, add it to the query
+        if (locationId) {
+            query.locationId = locationId;
+        }
+
+        const posts = await db.collection('Images').find(query).sort({ created: -1 }).toArray();
+
+        for (let post of posts) {
+            post.imageUrl = await getObjectSignedUrl(post.imageName);
+        }
+
+        res.send(posts);
+    }
+    catch (e) {
+        console.error(e);
+        res.status(500).send('An error occurred while fetching posts.');
+    }
 });
 
 
+// Add Image(s) Endpoint
 app.post('/api/posts', upload.array('image', 10), async (req, res) => {
 	try {
 		const files = req.files;
 		const caption = req.body.caption;
 		const username = req.body.username;
+		const locationName = req.body.locationName;
 		const db = client.db('COP4331-G6-LP');
 		const postsCollection = db.collection('Images');
 
@@ -74,9 +88,11 @@ app.post('/api/posts', upload.array('image', 10), async (req, res) => {
 		for (let file of files) {
 			const imageName = generateFileName();
 
-			const fileBuffer = await sharp(file.buffer)
-				.resize({ height: 1920, width: 1080, fit: "contain" })
-				.toBuffer();
+			// const fileBuffer = await sharp(file.buffer)
+			// 	.resize({ height: 1920, width: 1080, fit: "contain" })
+			// 	.toBuffer();
+
+			const fileBuffer = file.buffer;
 
 			// Extract EXIF data
 			const metadata = await sharp(file.buffer).metadata();
@@ -98,6 +114,7 @@ app.post('/api/posts', upload.array('image', 10), async (req, res) => {
 				imageName,
 				caption,
 				username,
+				locationName,
 				date: new Date(),
 				latitude,  // Add latitude to the document
 				longitude, // Add longitude to the document
@@ -112,8 +129,7 @@ app.post('/api/posts', upload.array('image', 10), async (req, res) => {
 	}
 });
 
-
-
+// Delete Image Endpoint
 app.delete("/api/posts/:id", async (req, res) => {
 	try {
 		const id = req.params.id;
@@ -139,6 +155,61 @@ app.delete("/api/posts/:id", async (req, res) => {
 	}
 });
 
+
+/////////////// LOCATION ENDPOINTS ///////////////
+
+// Create Location Endpoint
+app.post("/api/locations", async (req, res) => {
+	try {
+		const { locationName, title, username, latitude, longitude } = req.body;
+		const db = client.db('COP4331-G6-LP');
+		const locationsCollection = db.collection('Locations');
+
+		// Insert the new location into the Locations collection
+		const result = await locationsCollection.insertOne({
+			locationName,
+			title,
+			username,
+			latitude,
+			longitude
+		});
+
+		res.status(201).send('Location created successfully.');
+	} catch (error) {
+		console.error(error);
+		res.status(500).send('An error occurred while creating the location.');
+	}
+});
+
+// Delete Location and Associated Images Endpoint
+app.delete("/api/locations/:id", async (req, res) => {
+	try {
+		const locationId = req.params.id;
+		const db = client.db('COP4331-G6-LP');
+		const locationsCollection = db.collection('Locations');
+		const imagesCollection = db.collection('Images');
+
+		// Find the location to delete
+		const location = await locationsCollection.findOne({ _id: new mongodb.ObjectID(locationId) });
+		if (!location) {
+			return res.status(404).send('Location not found.');
+		}
+
+		// Delete all images associated with the location name
+		await imagesCollection.deleteMany({ locationName: location.locationName });
+
+		// Delete the location
+		await locationsCollection.deleteOne({ _id: new mongodb.ObjectID(locationId) });
+
+		res.send('Location and associated images deleted successfully.');
+	} catch (error) {
+		console.error(error);
+		res.status(500).send('An error occurred while deleting the location.');
+	}
+});
+
+
+///////////////// USER ENDPOINTS /////////////////
 
 app.post("/api/createuser", async (req, res, next) => {
 	const { firstName, lastName, username, email, password } = req.body;
