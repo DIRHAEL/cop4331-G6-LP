@@ -43,9 +43,9 @@ const generateFileName = (bytes = 32) => crypto.randomBytes(bytes).toString('hex
 /////////////// IMAGE ENDPOINTS ///////////////
 
 // Fetch Images Endpoint
-app.get('/posts/:userId/:locationId?', async (req, res) => {
+app.get('/posts/:username/:locationId?', async (req, res) => {
     try {
-        const username = req.params.userId;
+        const username = req.params.username;
         const locationId = req.params.locationId;
         const db = client.db('COP4331-G6-LP');
         const query = { Username: username };
@@ -130,6 +130,7 @@ app.post('/api/posts', upload.array('image', 10), async (req, res) => {
 });
 
 // Delete Image Endpoint
+// some issue here
 app.delete("/api/posts/:id", async (req, res) => {
 	try {
 		const id = req.params.id;
@@ -182,6 +183,7 @@ app.post("/api/locations", async (req, res) => {
 });
 
 // Delete Location and Associated Images Endpoint
+// some issues here
 app.delete("/api/locations/:id", async (req, res) => {
 	try {
 		const locationId = req.params.id;
