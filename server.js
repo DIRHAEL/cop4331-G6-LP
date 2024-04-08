@@ -1,15 +1,16 @@
 const express = require("express");
+
+const multer = require("multer");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const AWS = require("aws-sdk");
-const multer = require("multer");
-const multerS3 = require("multer-s3");
-const ExifImage = require("exif").ExifImage;
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const sharp = require("sharp");
 const path = require("path");
 const PORT = process.env.PORT || 5000;
+
+const { uploadFile, deleteFile, getObjectSignedUrl } = require('./s3.js');
+
 const app = express();
 app.set("port", process.env.PORT || 5000);
 // For Heroku deployment
@@ -34,74 +35,110 @@ client.connect(console.log("mongodb connected"));
 app.use(cors());
 app.use(bodyParser.json());
 
+const storage = multer.memoryStorage()
+const upload = multer({ storage: storage })
 
-AWS.config.update({
-	accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-	secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-	region: process.env.AWS_REGION,
-});
+const generateFileName = (bytes = 32) => crypto.randomBytes(bytes).toString('hex')
 
-const s3 = new AWS.S3();
-
-const upload = multer({
-	storage: multerS3({
-		s3: s3,
-		bucket: 'mindmapimages',
-		acl: 'public-read',
-		metadata: async function (req, file, cb) {
-			const metadata = await sharp(file.stream).metadata();
-			cb(null, { fieldName: file.fieldname, ...metadata });
-		},
-		key: function (req, file, cb) {
-			cb(null, Date.now().toString())
-		}
-	}),
-	limits: { fileSize: 10000000 }, // 10MB
-});
-
-app.post('/upload', upload.array('file', 10), async (req, res) => {
-	if (!req.files) {
-		return res.status(400).json({ error: 'No files were uploaded.' });
-	}
-
-	const { username } = req.body;
-
+app.get('/posts', async (req, res) => {
 	try {
-		const db = client.db("COP4331-G6-LP");
+		const db = client.db('COP4331-G6-LP');
+		const posts = await db.collection('Images').find().sort({ created: -1 }).toArray();
 
-		// Find the user
+		for (let post of posts) {
+			post.imageUrl = await getObjectSignedUrl(post.imageName);
+		}
+
+		res.send(posts);
+	}
+	catch (e) {
+		console.error(e);
+		res.status(500).send('An error occurred while fetching posts.');
+	}
+});
+
+
+app.post('/api/posts', upload.array('image', 10), async (req, res) => {
+	try {
+		const files = req.files;
+		const caption = req.body.caption;
+		const username = req.body.username;
+		const db = client.db('COP4331-G6-LP');
+		const postsCollection = db.collection('Images');
+
 		const user = await db.collection("Users").findOne({ Username: username });
 		if (!user) {
 			return res.status(400).json({ error: 'User not found.' });
 		}
 
-		// Link the files to the user and location
-		for (let file of req.files) {
-			// Read the image metadata
+		for (let file of files) {
+			const imageName = generateFileName();
+
+			const fileBuffer = await sharp(file.buffer)
+				.resize({ height: 1920, width: 1080, fit: "contain" })
+				.toBuffer();
+
+			// Extract EXIF data
 			const metadata = await sharp(file.buffer).metadata();
-			const { latitude, longitude } = metadata.exif.gps;
-
-			const locationName = `${latitude}, ${longitude}`;
-
-			// Find or create the location
-			let location = await db.collection("Locations").findOne({ Name: locationName });
-			if (!location) {
-				location = await db.collection("Locations").insertOne({ Name: locationName });
+			const exifData = metadata.exif;
+			let latitude, longitude;
+			if (exifData && exifData.gps) {
+				latitude = exifData.gps.GPSLatitude;
+				longitude = exifData.gps.GPSLongitude;
+			} else {
+				// Handle the case where there is no EXIF data
+				console.log('No EXIF data found.');
+				latitude = null;
+				longitude = null;
 			}
 
-			const image = {
-				url: file.location, // URL of the image stored in S3
-				userId: user._id,
-				locationId: location._id
-			};
-			await db.collection("Images").insertOne(image);
+			await uploadFile(fileBuffer, imageName, file.mimetype);
+
+			const post = await postsCollection.insertOne({
+				imageName,
+				caption,
+				username,
+				date: new Date(),
+				latitude,  // Add latitude to the document
+				longitude, // Add longitude to the document
+				// Add other fields as needed
+			});
 		}
 
-		res.json({ files: req.files });
+		res.status(201).send('All images have been uploaded and added to the database.');
 	} catch (e) {
-		res.status(500).json({ error: e.toString() });
+		console.error(e);
+		res.status(500).send('An error occurred while creating the post.');
 	}
 });
+
+
+
+app.delete("/api/posts/:id", async (req, res) => {
+	try {
+		const id = req.params.id;
+		const db = client.db('COP4331-G6-LP');
+		const postsCollection = db.collection('Images');
+
+		// Find the post
+		const post = await postsCollection.findOne({ _id: new mongodb.ObjectID(id) });
+		if (!post) {
+			return res.status(404).send('Post not found.');
+		}
+
+		// Delete the image from S3
+		await deleteFile(post.imageName);
+
+		// Delete the post from the database
+		await postsCollection.deleteOne({ _id: new mongodb.ObjectID(id) });
+
+		res.send(post);
+	} catch (e) {
+		console.error(e);
+		res.status(500).send('An error occurred while deleting the post.');
+	}
+});
+
 
 app.post("/api/createuser", async (req, res, next) => {
 	const { firstName, lastName, username, email, password } = req.body;
