@@ -39,6 +39,10 @@ client.connect(console.log("mongodb connected"));
 app.use(cors());
 app.use(bodyParser.json());
 
+const transporter = nodemailer.createTransport({
+	SES: { apiVersion: '2010-12-01' }
+});
+
 const storage = multer.memoryStorage()
 const upload = multer({ storage: storage })
 
@@ -257,8 +261,22 @@ app.post("/api/createuser", async (req, res, next) => {
 			Validated: false,
 		};
 		const result = await db.collection("Users").insertOne(newUser);
+		
 		// Send email validation
-		await sendValidationEmail(email); // You need to implement this function
+		const mailOptions = {
+			from: 'MemoryMap <memorymap.mern@gmail.com>',
+			to: email,
+			subject: 'MemoryMap Email Verification',
+			text: 'Please click on the following link to validate your email: https://memorymap.xyz/validate?token=${validationToken}',
+			html: '<p>Please verify your email address by clicking the following link: https://memorymap.xyz/validate?token=${validationToken}</p>'
+		};
+		transporter.sendMail(mailOptions, (err, info) => {
+			if (err) {
+				console.error(err);
+			} else {
+				console.log('Email sent: ' + info.response);
+			}
+		});
 
 		res.status(200).json({ message: "User created successfully. Validation email sent." });
 	} catch (e) {
@@ -272,41 +290,32 @@ function generateValidationToken() {
 }
 
 async function sendValidationEmail(email) {
-	const transporter = nodemailer.createTransport({
-		SES: { apiVersion: '2010-12-01' }
-	});
 
-	const mailOptions = {
-		from: 'memorymap.mern@gmail.com',
-		to: email,
-		subject: 'MemoryMap Email Verification',
-		text: 'Please click on the following link to validate your email: https://memorymap.xyz/validate?token=${validationToken}',
-		html: '<p>Please verify your email address by clicking the following link: https://memorymap.xyz/validate?token=${validationToken}</p>'
-	};
-	await transporter.sendMail(mailOptions);
+
+
 }
 
 app.get('/validate', async (req, res) => {
-    const { token } = req.query;
+	const { token } = req.query;
 
-    try {
-        const db = client.db('COP4331-G6-LP');
+	try {
+		const db = client.db('COP4331-G6-LP');
 
-        // Find user by validation token
-        const user = await db.collection('Users').findOne({ ValidationToken: token });
+		// Find user by validation token
+		const user = await db.collection('Users').findOne({ ValidationToken: token });
 
-        if (!user) {
-            return res.status(404).json({ error: 'User not found or invalid token' });
-        }
+		if (!user) {
+			return res.status(404).json({ error: 'User not found or invalid token' });
+		}
 
-        // Update user's validation status
-        await db.collection('Users').updateOne({ _id: user._id }, { $set: { Validated: true } });
+		// Update user's validation status
+		await db.collection('Users').updateOne({ _id: user._id }, { $set: { Validated: true } });
 
-        return res.status(200).json({ message: 'Email validated successfully' });
-    } catch (error) {
-        console.error('Error validating email:', error);
-        return res.status(500).json({ error: 'An error occurred while validating email' });
-    }
+		return res.status(200).json({ message: 'Email validated successfully' });
+	} catch (error) {
+		console.error('Error validating email:', error);
+		return res.status(500).json({ error: 'An error occurred while validating email' });
+	}
 });
 
 // Updated /api/login endpoint to include bcrypt password comparison
