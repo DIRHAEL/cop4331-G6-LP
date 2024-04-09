@@ -39,8 +39,14 @@ client.connect(console.log("mongodb connected"));
 app.use(cors());
 app.use(bodyParser.json());
 
-const transporter = nodemailer.createTransport({
-	SES: { apiVersion: '2010-12-01' }
+let transporter = nodemailer.createTransport({
+    host: 'email-smtp.us-east-1.amazonaws.com', // Amazon SES SMTP endpoint
+    port: 587,
+    secure: false, 
+    auth: {
+        user: smtpUsername, // SMTP username
+        pass: smtpPassword // SMTP password
+    }
 });
 
 const storage = multer.memoryStorage()
