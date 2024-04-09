@@ -5,6 +5,8 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const nodemailer = require("nodemailer");
+const { v4: uuidv4 } = require('uuid');
 const sharp = require("sharp");
 const path = require("path");
 const PORT = process.env.PORT || 5000;
@@ -28,7 +30,9 @@ if (process.env.NODE_ENV === "production") {
 // Your MongoDB connection string
 // const uri = "mongodb+srv://thebeast:COP4331-G6@cop4331-g6-lp.rvnbxnv.mongodb.net/?retryWrites=true&w=majority&appName=COP4331-G6-LP";
 require("dotenv").config();
-const url = process.env.MONGODB_URI; // storing into environmental
+const url = process.env.MONGODB_URI;
+const smtpUsername = process.env.SMTP_USERNAME;
+const smtpPassword = process.env.SMTP_PASSWORD;
 const MongoClient = require("mongodb").MongoClient;
 const client = new MongoClient(url);
 client.connect(console.log("mongodb connected"));
@@ -44,29 +48,29 @@ const generateFileName = (bytes = 32) => crypto.randomBytes(bytes).toString('hex
 
 // Fetch Images Endpoint
 app.get('/posts/:username/:locationId?', async (req, res) => {
-    try {
-        const username = req.params.username;
-        const locationId = req.params.locationId;
-        const db = client.db('COP4331-G6-LP');
-        const query = { Username: username };
+	try {
+		const username = req.params.username;
+		const locationId = req.params.locationId;
+		const db = client.db('COP4331-G6-LP');
+		const query = { Username: username };
 
-        // If a locationId is provided, add it to the query
-        if (locationId) {
-            query.locationId = locationId;
-        }
+		// If a locationId is provided, add it to the query
+		if (locationId) {
+			query.locationId = locationId;
+		}
 
-        const posts = await db.collection('Images').find(query).sort({ created: -1 }).toArray();
+		const posts = await db.collection('Images').find(query).sort({ created: -1 }).toArray();
 
-        for (let post of posts) {
-            post.imageUrl = await getObjectSignedUrl(post.imageName);
-        }
+		for (let post of posts) {
+			post.imageUrl = await getObjectSignedUrl(post.imageName);
+		}
 
-        res.send(posts);
-    }
-    catch (e) {
-        console.error(e);
-        res.status(500).send('An error occurred while fetching posts.');
-    }
+		res.send(posts);
+	}
+	catch (e) {
+		console.error(e);
+		res.status(500).send('An error occurred while fetching posts.');
+	}
 });
 
 
@@ -240,6 +244,7 @@ app.post("/api/createuser", async (req, res, next) => {
 
 		// Hash the password
 		const hashedPassword = await bcrypt.hash(password, 10);
+		const validationToken = generateValidationToken(); // You need to implement this function
 
 		// Create new user
 		const newUser = {
@@ -248,13 +253,60 @@ app.post("/api/createuser", async (req, res, next) => {
 			Username: username,
 			Email: email,
 			Password: hashedPassword,
+			ValidationToken: validationToken,
+			Validated: false,
 		};
 		const result = await db.collection("Users").insertOne(newUser);
-	} catch (e) {
-		error = e.toString();
-	}
+		// Send email validation
+		await sendValidationEmail(email); // You need to implement this function
 
-	res.status(error ? 500 : 200).json({ error: error });
+		res.status(200).json({ message: "User created successfully. Validation email sent." });
+	} catch (e) {
+		console.error('Error creating user:', e);
+		res.status(500).json({ error: "An error occurred while creating user" });
+	}
+});
+
+function generateValidationToken() {
+	return uuidv4();
+}
+
+async function sendValidationEmail(email) {
+	const transporter = nodemailer.createTransport({
+		SES: { apiVersion: '2010-12-01' }
+	});
+
+	const mailOptions = {
+		from: 'memorymap.mern@gmail.com',
+		to: email,
+		subject: 'MemoryMap Email Verification',
+		text: 'Please click on the following link to validate your email: https://memorymap.xyz/validate?token=${validationToken}',
+		html: '<p>Please verify your email address by clicking the following link: https://memorymap.xyz/validate?token=${validationToken}</p>'
+	};
+	await transporter.sendMail(mailOptions);
+}
+
+app.get('/validate', async (req, res) => {
+    const { token } = req.query;
+
+    try {
+        const db = client.db('COP4331-G6-LP');
+
+        // Find user by validation token
+        const user = await db.collection('Users').findOne({ ValidationToken: token });
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found or invalid token' });
+        }
+
+        // Update user's validation status
+        await db.collection('Users').updateOne({ _id: user._id }, { $set: { Validated: true } });
+
+        return res.status(200).json({ message: 'Email validated successfully' });
+    } catch (error) {
+        console.error('Error validating email:', error);
+        return res.status(500).json({ error: 'An error occurred while validating email' });
+    }
 });
 
 // Updated /api/login endpoint to include bcrypt password comparison
