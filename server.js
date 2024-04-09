@@ -40,13 +40,13 @@ app.use(cors());
 app.use(bodyParser.json());
 
 let transporter = nodemailer.createTransport({
-    host: 'email-smtp.us-east-1.amazonaws.com', // Amazon SES SMTP endpoint
-    port: 587,
-    secure: false, 
-    auth: {
-        user: smtpUsername, // SMTP username
-        pass: smtpPassword // SMTP password
-    }
+	host: 'email-smtp.us-east-1.amazonaws.com', // Amazon SES SMTP endpoint
+	port: 587,
+	secure: false,
+	auth: {
+		user: smtpUsername, // SMTP username
+		pass: smtpPassword // SMTP password
+	}
 });
 
 const storage = multer.memoryStorage()
@@ -267,22 +267,9 @@ app.post("/api/createuser", async (req, res, next) => {
 			Validated: false,
 		};
 		const result = await db.collection("Users").insertOne(newUser);
-		
+
 		// Send email validation
-		const mailOptions = {
-			from: 'MemoryMap <memorymap.mern@gmail.com>',
-			to: email,
-			subject: 'MemoryMap Email Verification',
-			text: 'Please click on the following link to validate your email: https://memorymap.xyz/validate?token=${validationToken}',
-			html: '<p>Please verify your email address by clicking the following link: https://memorymap.xyz/validate?token=${validationToken}</p>'
-		};
-		transporter.sendMail(mailOptions, (err, info) => {
-			if (err) {
-				console.error(err);
-			} else {
-				console.log('Email sent: ' + info.response);
-			}
-		});
+		sendValidationEmail(email, validationToken);
 
 		res.status(200).json({ message: "User created successfully. Validation email sent." });
 	} catch (e) {
@@ -295,10 +282,22 @@ function generateValidationToken() {
 	return uuidv4();
 }
 
-async function sendValidationEmail(email) {
+async function sendValidationEmail(email, validationToken) {
+	const mailOptions = {
+		from: 'MemoryMap <memorymap.mern@gmail.com>',
+		to: email,
+		subject: 'MemoryMap Email Verification',
+		text: `Please click on the following link to verify your email: https://memorymap.xyz/validate?token=${validationToken}`,
+		html: `<p>Please click on the following link to verify your email: https://memorymap.xyz/validate?token=${validationToken}</p>`
+	};
 
-
-
+	await transporter.sendMail(mailOptions, (err, info) => {
+		if (err) {
+			console.error(err);
+		} else {
+			console.log('Email sent: ' + info.response);
+		}
+	});
 }
 
 app.get('/validate', async (req, res) => {
@@ -323,6 +322,41 @@ app.get('/validate', async (req, res) => {
 		return res.status(500).json({ error: 'An error occurred while validating email' });
 	}
 });
+
+// Resend Verification Email Endpoint
+app.post("/api/resend-verification", async (req, res) => {
+	const { email } = req.body;
+
+	try {
+		const db = client.db('COP4331-G6-LP');
+
+		// Check if the user exists
+		const user = await db.collection('Users').findOne({ Email: email });
+		if (!user) {
+			return res.status(404).json({ error: 'User not found' });
+		}
+
+		// Check if the user is already validated
+		if (user.Validated) {
+			return res.status(400).json({ error: 'User is already validated' });
+		}
+
+		// Generate a new validation token
+		const validationToken = generateValidationToken();
+
+		// Update the user's validation token in the database
+		await db.collection('Users').updateOne({ _id: user._id }, { $set: { ValidationToken: validationToken } });
+
+		// Send the new verification email
+		await sendValidationEmail(email, validationToken);
+
+		return res.status(200).json({ message: 'Verification email resent successfully' });
+	} catch (error) {
+		console.error('Error resending verification email:', error);
+		return res.status(500).json({ error: 'An error occurred while resending verification email' });
+	}
+});
+
 
 // Updated /api/login endpoint to include bcrypt password comparison
 app.post("/api/login", async (req, res, next) => {
