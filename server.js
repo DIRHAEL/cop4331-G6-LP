@@ -15,17 +15,7 @@ const { uploadFile, deleteFile, getObjectSignedUrl } = require('./s3.js');
 
 const app = express();
 app.set("port", process.env.PORT || 5000);
-// For Heroku deployment
 
-// Server static assets if in production
-if (process.env.NODE_ENV === "production") {
-	// Set static folder
-	app.use(express.static("frontend/build"));
-
-	app.get("*", (req, res) => {
-		res.sendFile(path.resolve(__dirname, "frontend", "build", "index.html"));
-	});
-}
 
 // Your MongoDB connection string
 // const uri = "mongodb+srv://thebeast:COP4331-G6@cop4331-g6-lp.rvnbxnv.mongodb.net/?retryWrites=true&w=majority&appName=COP4331-G6-LP";
@@ -394,13 +384,17 @@ app.post("/api/login", async (req, res, next) => {
 	res.status(error ? 500 : 200).json(ret);
 });
 
-// Serve static assets (React application)
-app.use(express.static(path.join(__dirname, 'frontend/public')));
+// For Heroku deployment
 
-// Handle requests to unknown routes by serving the React application
-app.get('*', (req, res) => {
-	res.sendFile(path.join(__dirname, 'frontend/public', 'index.html'));
-});
+// Server static assets if in production
+if (process.env.NODE_ENV === "production") {
+	// Set static folder
+	app.use(express.static("frontend/build"));
+
+	app.get("*", (req, res) => {
+		res.sendFile(path.resolve(__dirname, "frontend", "build", "index.html"));
+	});
+}
 
 app.use((req, res, next) => {
 	res.setHeader("Access-Control-Allow-Origin", "*");
