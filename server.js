@@ -39,6 +39,7 @@ client.connect(console.log("mongodb connected"));
 app.use(cors());
 app.use(bodyParser.json());
 
+// Set up email transporter
 let transporter = nodemailer.createTransport({
 	host: 'email-smtp.us-east-1.amazonaws.com', // Amazon SES SMTP endpoint
 	port: 587,
@@ -57,7 +58,7 @@ const generateFileName = (bytes = 32) => crypto.randomBytes(bytes).toString('hex
 /////////////// IMAGE ENDPOINTS ///////////////
 
 // Fetch Images Endpoint
-app.get('/posts/:username/:locationId?', async (req, res) => {
+app.get('/api/posts/:username/:locationId?', async (req, res) => {
 	try {
 		const username = req.params.username;
 		const locationId = req.params.locationId;
@@ -300,7 +301,7 @@ async function sendValidationEmail(email, validationToken) {
 	});
 }
 
-app.get('/validate', async (req, res) => {
+app.get('/api/validate', async (req, res) => {
 	const { token } = req.query;
 
 	try {
