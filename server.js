@@ -378,7 +378,6 @@ app.post("/api/login", async (req, res, next) => {
 		firstName: user ? user.FirstName : "",
 		lastName: user ? user.LastName : "",
 		username: user ? user.Username : "",
-		validated: user ? user.Validated : false,
 		error: error,
 	};
 
