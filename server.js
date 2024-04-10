@@ -39,6 +39,7 @@ client.connect(console.log("mongodb connected"));
 app.use(cors());
 app.use(bodyParser.json());
 
+
 // Set up email transporter
 let transporter = nodemailer.createTransport({
 	host: 'email-smtp.us-east-1.amazonaws.com', // Amazon SES SMTP endpoint
@@ -58,7 +59,7 @@ const generateFileName = (bytes = 32) => crypto.randomBytes(bytes).toString('hex
 /////////////// IMAGE ENDPOINTS ///////////////
 
 // Fetch Images Endpoint
-app.get('/api/posts/:username/:locationId?', async (req, res) => {
+app.get('/posts/:username/:locationId?', async (req, res) => {
 	try {
 		const username = req.params.username;
 		const locationId = req.params.locationId;
@@ -86,7 +87,7 @@ app.get('/api/posts/:username/:locationId?', async (req, res) => {
 
 
 // Add Image(s) Endpoint
-app.post('/api/posts', upload.array('image', 10), async (req, res) => {
+app.post('/posts', upload.array('image', 10), async (req, res) => {
 	try {
 		const files = req.files;
 		const caption = req.body.caption;
@@ -301,7 +302,7 @@ async function sendValidationEmail(email, validationToken) {
 	});
 }
 
-app.get('/api/validate', async (req, res) => {
+app.get('/validate', async (req, res) => {
 	const { token } = req.query;
 
 	try {
@@ -391,6 +392,14 @@ app.post("/api/login", async (req, res, next) => {
 	};
 
 	res.status(error ? 500 : 200).json(ret);
+});
+
+// Serve static assets (React application)
+app.use(express.static(path.join(__dirname, 'frontend/public')));
+
+// Handle requests to unknown routes by serving the React application
+app.get('*', (req, res) => {
+	res.sendFile(path.join(__dirname, 'frontend/public', 'index.html'));
 });
 
 app.use((req, res, next) => {
