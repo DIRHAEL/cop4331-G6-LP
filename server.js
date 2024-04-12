@@ -438,6 +438,7 @@ app.post("/api/login", async (req, res, next) => {
 
 	let error = "";
 	let user;
+	let locations = []; // Declare locations here
 
 	try {
 		const db = client.db("COP4331-G6-LP");
@@ -455,7 +456,6 @@ app.post("/api/login", async (req, res, next) => {
 		}
 
 		// If there is no error, fetch the locations associated with the user
-		let locations = [];
 		if (!error) {
 			locations = await db.collection('Locations').find({ username: user.Username }).toArray();
 		}
@@ -475,6 +475,7 @@ app.post("/api/login", async (req, res, next) => {
 
 	res.status(error ? 500 : 200).json(ret);
 });
+
 
 
 // For Heroku deployment
