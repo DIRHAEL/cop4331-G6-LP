@@ -8,6 +8,8 @@ const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const { v4: uuidv4 } = require('uuid');
 const sharp = require("sharp");
+const exifParser = require("exif-parser");
+const axios = require("axios");
 const path = require("path");
 const PORT = process.env.PORT || 5000;
 
@@ -17,8 +19,6 @@ const app = express();
 app.set("port", process.env.PORT || 5000);
 
 
-// Your MongoDB connection string
-// const uri = "mongodb+srv://thebeast:COP4331-G6@cop4331-g6-lp.rvnbxnv.mongodb.net/?retryWrites=true&w=majority&appName=COP4331-G6-LP";
 require("dotenv").config();
 const url = process.env.MONGODB_URI;
 const smtpUsername = process.env.SMTP_USERNAME;
@@ -52,9 +52,9 @@ const generateFileName = (bytes = 32) => crypto.randomBytes(bytes).toString('hex
 app.get('/posts/:username/:locationId?', async (req, res) => {
 	try {
 		const username = req.params.username;
-		const locationId = req.params.locationId;
+		const locationId = req.params.id;
 		const db = client.db('COP4331-G6-LP');
-		const query = { Username: username };
+		const query = { username: username };
 
 		// If a locationId is provided, add it to the query
 		if (locationId) {
@@ -101,12 +101,12 @@ app.post('/posts', upload.array('image', 10), async (req, res) => {
 			const fileBuffer = file.buffer;
 
 			// Extract EXIF data
-			const metadata = await sharp(file.buffer).metadata();
-			const exifData = metadata.exif;
+			const parser = exifParser.create(file.buffer);
+			const result = parser.parse();
 			let latitude, longitude;
-			if (exifData && exifData.gps) {
-				latitude = exifData.gps.GPSLatitude;
-				longitude = exifData.gps.GPSLongitude;
+			if (result && result.tags && result.tags.GPSLatitude && result.tags.GPSLongitude) {
+				latitude = result.tags.GPSLatitude;
+				longitude = result.tags.GPSLongitude;
 			} else {
 				// Handle the case where there is no EXIF data
 				console.log('No EXIF data found.');
@@ -134,6 +134,11 @@ app.post('/posts', upload.array('image', 10), async (req, res) => {
 		res.status(500).send('An error occurred while creating the post.');
 	}
 });
+
+/// ENDPOINT FOR MODIFYING LAT AND LONG ON IMAGES
+
+// ENDPOINT FOR FETCHING IMAGE ID
+
 
 // Delete Image Endpoint
 // some issue here
@@ -181,12 +186,17 @@ app.post("/api/locations", async (req, res) => {
 			longitude
 		});
 
+		// Return location id
 		res.status(201).send('Location created successfully.');
 	} catch (error) {
 		console.error(error);
 		res.status(500).send('An error occurred while creating the location.');
 	}
 });
+
+/// ENDPOINT FOR MODIFYING LAT AND LONG ON IMAGES
+
+// Fetch Locations id Endpoint
 
 // Delete Location and Associated Images Endpoint
 // some issues here
@@ -378,6 +388,7 @@ app.post("/api/login", async (req, res, next) => {
 		firstName: user ? user.FirstName : "",
 		lastName: user ? user.LastName : "",
 		username: user ? user.Username : "",
+		validated: user ? user.Validated : false,
 		error: error,
 	};
 
