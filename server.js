@@ -23,6 +23,7 @@ require("dotenv").config();
 const url = process.env.MONGODB_URI;
 const smtpUsername = process.env.SMTP_USERNAME;
 const smtpPassword = process.env.SMTP_PASSWORD;
+const gMapsKey = process.env.GMAPS_API_KEY;
 const MongoClient = require("mongodb").MongoClient;
 const client = new MongoClient(url);
 client.connect(console.log("mongodb connected"));
@@ -55,9 +56,14 @@ app.get('/posts/:username/:locationId?', async (req, res) => {
 		const locationId = req.params.id;
 		const db = client.db('COP4331-G6-LP');
 		const query = { username: username };
+		const locationsCollection = db.collection('Locations');
 
 		// If a locationId is provided, add it to the query
 		if (locationId) {
+			const location = await locationsCollection.findOne({ _id: new mongodb.ObjectID(locationId) });
+			if (!location) {
+				return res.status(404).send('Location not found.');
+			}
 			query.locationId = locationId;
 		}
 
@@ -82,7 +88,7 @@ app.post('/posts', upload.array('image', 10), async (req, res) => {
 		const files = req.files;
 		const caption = req.body.caption;
 		const username = req.body.username;
-		const locationName = req.body.locationName;
+		const locationId = req.body.locationId; // Get the locationId from the request body
 		const db = client.db('COP4331-G6-LP');
 		const postsCollection = db.collection('Images');
 
@@ -94,10 +100,6 @@ app.post('/posts', upload.array('image', 10), async (req, res) => {
 		for (let file of files) {
 			const imageName = generateFileName();
 
-			// const fileBuffer = await sharp(file.buffer)
-			// 	.resize({ height: 1920, width: 1080, fit: "contain" })
-			// 	.toBuffer();
-
 			const fileBuffer = file.buffer;
 
 			// Extract EXIF data
@@ -108,7 +110,6 @@ app.post('/posts', upload.array('image', 10), async (req, res) => {
 				latitude = result.tags.GPSLatitude;
 				longitude = result.tags.GPSLongitude;
 			} else {
-				// Handle the case where there is no EXIF data
 				console.log('No EXIF data found.');
 				latitude = null;
 				longitude = null;
@@ -120,11 +121,10 @@ app.post('/posts', upload.array('image', 10), async (req, res) => {
 				imageName,
 				caption,
 				username,
-				locationName,
+				locationId,
 				date: new Date(),
-				latitude,  // Add latitude to the document
-				longitude, // Add longitude to the document
-				// Add other fields as needed
+				latitude,
+				longitude,
 			});
 		}
 
@@ -135,14 +135,36 @@ app.post('/posts', upload.array('image', 10), async (req, res) => {
 	}
 });
 
-/// ENDPOINT FOR MODIFYING LAT AND LONG ON IMAGES
 
-// ENDPOINT FOR FETCHING IMAGE ID
+/// Modify Lat and Long on images
+app.put('/posts/:postId', async (req, res) => {
+	try {
+		const postId = req.params.postId;
+		const { latitude, longitude } = req.body;
+		const db = client.db('COP4331-G6-LP');
+		const postsCollection = db.collection('Images');
+
+		// Find the post by its ID
+		const post = await postsCollection.findOne({ _id: new ObjectId(postId) });
+
+		if (!post) {
+			return res.status(404).json({ error: 'Post not found.' });
+		}
+
+		// Update the latitude and longitude of the post
+		await postsCollection.updateOne({ _id: new ObjectId(postId) }, { $set: { latitude, longitude } });
+
+		res.status(200).send('Post updated successfully.');
+	} catch (error) {
+		console.error(error);
+		res.status(500).send('An error occurred while updating the post.');
+	}
+});
 
 
 // Delete Image Endpoint
-// some issue here
-app.delete("/api/posts/:id", async (req, res) => {
+// some issue here, needs testing
+app.delete("/posts/:id", async (req, res) => {
 	try {
 		const id = req.params.id;
 		const db = client.db('COP4331-G6-LP');
@@ -155,12 +177,16 @@ app.delete("/api/posts/:id", async (req, res) => {
 		}
 
 		// Delete the image from S3
-		await deleteFile(post.imageName);
+		const deleteResult = await deleteFile(post.imageName);
+		if (!deleteResult.success) {
+			// If the image deletion failed, send an error response
+			return res.status(500).send('An error occurred while deleting the image from S3.');
+		}
 
 		// Delete the post from the database
 		await postsCollection.deleteOne({ _id: new mongodb.ObjectID(id) });
 
-		res.send(post);
+		res.send('Post deleted successfully.');
 	} catch (e) {
 		console.error(e);
 		res.status(500).send('An error occurred while deleting the post.');
@@ -168,26 +194,32 @@ app.delete("/api/posts/:id", async (req, res) => {
 });
 
 
+
 /////////////// LOCATION ENDPOINTS ///////////////
 
 // Create Location Endpoint
 app.post("/api/locations", async (req, res) => {
 	try {
-		const { locationName, title, username, latitude, longitude } = req.body;
+		const { title, username, latitude, longitude } = req.body;
 		const db = client.db('COP4331-G6-LP');
 		const locationsCollection = db.collection('Locations');
 
+		// Use Google Maps Reverse Geocoding API to get location details from coordinates
+		const response = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${gMapsKey}`);
+		const locationDetails = response.data.results[0];
+
 		// Insert the new location into the Locations collection
 		const result = await locationsCollection.insertOne({
-			locationName,
+			locationName: locationDetails.formatted_address, // Use the formatted address from the Google Maps API
 			title,
 			username,
 			latitude,
-			longitude
+			longitude,
+			// images: [] // Initialize an empty array for images
 		});
 
-		// Return location id
-		res.status(201).send('Location created successfully.');
+		// Return the new location's ID in the response
+		res.status(201).json({ message: 'Location created successfully.', markerId: result.insertedId });
 	} catch (error) {
 		console.error(error);
 		res.status(500).send('An error occurred while creating the location.');
@@ -195,11 +227,52 @@ app.post("/api/locations", async (req, res) => {
 });
 
 /// ENDPOINT FOR MODIFYING LAT AND LONG ON IMAGES
+app.put("/api/locations/:locationId", async (req, res) => {
+	try {
+		const locationId = req.params.locationId;
+		const { latitude, longitude } = req.body;
+		const db = client.db('COP4331-G6-LP');
+		const locationsCollection = db.collection('Locations');
 
-// Fetch Locations id Endpoint
+		// Find the location by its ID
+		const location = await locationsCollection.findOne({ _id: new mongodb.ObjectID(locationId) });
+		if (!location) {
+			return res.status(404).send('Location not found.');
+		}
+
+		// Use Google Maps Reverse Geocoding API to get location details from coordinates
+		const response = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${gMapsKey}`);
+		const locationDetails = response.data.results[0];
+
+		// Update the latitude, longitude, and location name of the location
+		await locationsCollection.updateOne({ _id: new mongodb.ObjectID(locationId) }, { $set: { latitude, longitude, locationName: locationDetails.formatted_address } });
+
+		res.status(200).send('Location updated successfully.');
+	} catch (error) {
+		console.error(error);
+		res.status(500).send('An error occurred while updating the location.');
+	}
+});
+
+// Fetch Locations
+app.get("/api/locations/:username", async (req, res) => {
+	try {
+		const username = req.params.username;
+		const db = client.db('COP4331-G6-LP');
+		const locationsCollection = db.collection('Locations');
+
+		// Find the locations associated with the username
+		const locations = await locationsCollection.find({ username: username }).toArray();
+
+		res.status(200).json(locations);
+	} catch (error) {
+		console.error(error);
+		res.status(500).send('An error occurred while fetching the locations.');
+	}
+});
 
 // Delete Location and Associated Images Endpoint
-// some issues here
+// some issues here, needs testing
 app.delete("/api/locations/:id", async (req, res) => {
 	try {
 		const locationId = req.params.id;
@@ -214,7 +287,7 @@ app.delete("/api/locations/:id", async (req, res) => {
 		}
 
 		// Delete all images associated with the location name
-		await imagesCollection.deleteMany({ locationName: location.locationName });
+		await imagesCollection.deleteMany({ locationId: locationId });
 
 		// Delete the location
 		await locationsCollection.deleteOne({ _id: new mongodb.ObjectID(locationId) });
@@ -359,8 +432,7 @@ app.post("/api/resend-verification", async (req, res) => {
 	}
 });
 
-
-// Updated /api/login endpoint to include bcrypt password comparison
+// Add it so that it calls location fetching and returns all location information based on username
 app.post("/api/login", async (req, res, next) => {
 	const { login, password } = req.body;
 
@@ -369,7 +441,9 @@ app.post("/api/login", async (req, res, next) => {
 
 	try {
 		const db = client.db("COP4331-G6-LP");
-		user = await db.collection("Users").findOne({ Email: login });
+
+		// Find the user by either email or username
+		user = await db.collection("Users").findOne({ $or: [{ Email: login }, { Username: login }] });
 		if (user) {
 			const passwordMatch = await bcrypt.compare(password, user.Password);
 			if (!passwordMatch) {
@@ -378,6 +452,12 @@ app.post("/api/login", async (req, res, next) => {
 			}
 		} else {
 			error = "User not found";
+		}
+
+		// If there is no error, fetch the locations associated with the user
+		let locations = [];
+		if (!error) {
+			locations = await db.collection('Locations').find({ username: user.Username }).toArray();
 		}
 	} catch (e) {
 		error = e.toString();
@@ -389,11 +469,13 @@ app.post("/api/login", async (req, res, next) => {
 		lastName: user ? user.LastName : "",
 		username: user ? user.Username : "",
 		validated: user ? user.Validated : false,
+		locations: locations, // Add the locations to the response
 		error: error,
 	};
 
 	res.status(error ? 500 : 200).json(ret);
 });
+
 
 // For Heroku deployment
 
