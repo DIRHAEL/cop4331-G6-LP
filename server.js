@@ -55,6 +55,7 @@ app.get('/posts/:username/:locationId?', async (req, res) => {
 	try {
 		const username = req.params.username;
 		const locationId = req.params.locationId;
+		console.log(locationId);
 		const db = client.db('COP4331-G6-LP');
 		const query = { username: username };
 		const locationsCollection = db.collection('Locations');
