@@ -179,8 +179,7 @@ app.delete("/posts/:_id", async (req, res) => {
 
 		// Delete the image from S3
 		console.log(post.imageName);
-		const encodedImageName = encodeURIComponent(post.imageName);
-		const deleteResult = await deleteFile(encodedImageName);
+		const deleteResult = await deleteFile(post.imageName);
 		if (!deleteResult.success) {
 			// If the image deletion failed, send an error response
 			return res.status(500).send('An error occurred while deleting the image from S3.');
