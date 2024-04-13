@@ -178,7 +178,9 @@ app.delete("/posts/:_id", async (req, res) => {
 		}
 
 		// Delete the image from S3
-		const deleteResult = await deleteFile(post.imageName);
+		console.log(post.imageName);
+		const encodedImageName = encodeURIComponent(post.imageName);
+		const deleteResult = await deleteFile(encodedImageName);
 		if (!deleteResult.success) {
 			// If the image deletion failed, send an error response
 			return res.status(500).send('An error occurred while deleting the image from S3.');
@@ -286,6 +288,8 @@ app.delete("/api/locations/:_id", async (req, res) => {
 		if (!location) {
 			return res.status(404).send('Location not found.');
 		}
+		
+		// Make sure to also delete it from the s3 bucket
 
 		// Delete all images associated with the location name
 		await imagesCollection.deleteMany({ locationId: _id });
