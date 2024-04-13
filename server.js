@@ -5,6 +5,7 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const mongodb = require("mongodb");
 const nodemailer = require("nodemailer");
 const { v4: uuidv4 } = require('uuid');
 const sharp = require("sharp");
@@ -55,7 +56,7 @@ app.get('/posts/:username/:locationId?', async (req, res) => {
 	try {
 		const username = req.params.username;
 		const locationId = req.params.locationId;
-		console.log(locationId);
+		// console.log(locationId);
 		const db = client.db('COP4331-G6-LP');
 		const query = { username: username };
 		const locationsCollection = db.collection('Locations');
@@ -152,7 +153,7 @@ app.put('/posts/:_id', async (req, res) => {
 		}
 
 		// Update the latitude and longitude of the post
-		await postsCollection.updateOne({ _id: new ObjectId(postId) }, { $set: { latitude, longitude } });
+		await postsCollection.updateOne({ _id: new ObjectId(_id) }, { $set: { latitude, longitude } });
 
 		res.status(200).send('Post updated successfully.');
 	} catch (error) {
