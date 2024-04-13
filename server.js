@@ -6,6 +6,7 @@ const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const mongodb = require("mongodb");
+const ObjectId = mongodb.ObjectID;
 const nodemailer = require("nodemailer");
 const { v4: uuidv4 } = require('uuid');
 const sharp = require("sharp");
