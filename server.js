@@ -25,7 +25,7 @@ const smtpUsername = process.env.SMTP_USERNAME;
 const smtpPassword = process.env.SMTP_PASSWORD;
 const gMapsKey = process.env.GMAPS_API_KEY;
 const MongoClient = require("mongodb").MongoClient;
-const ObjectID = require("mongodb").ObjectID;
+const ObjectId = require("mongodb").ObjectId;
 const client = new MongoClient(url);
 client.connect(console.log("mongodb connected"));
 app.use(cors());
@@ -63,7 +63,7 @@ app.get('/posts/:username/:locationId?', async (req, res) => {
 
 		// If a locationId is provided, add it to the query
 		if (locationId) {
-			const location = await locationsCollection.findOne({ _id: new ObjectID(locationId) });
+			const location = await locationsCollection.findOne({ _id: new ObjectId(locationId) });
 			if (!location) {
 				return res.status(404).send('Location not found.');
 			}
@@ -146,14 +146,14 @@ app.put('/posts/:_id', async (req, res) => {
 		const postsCollection = db.collection('Images');
 
 		// Find the post by its ID
-		const post = await postsCollection.findOne({ _id: new ObjectID(_id) });
+		const post = await postsCollection.findOne({ _id: new ObjectId(_id) });
 
 		if (!post) {
 			return res.status(404).json({ error: 'Post not found.' });
 		}
 
 		// Update the latitude and longitude of the post
-		await postsCollection.updateOne({ _id: new ObjectID(_id) }, { $set: { latitude, longitude } });
+		await postsCollection.updateOne({ _id: new ObjectId(_id) }, { $set: { latitude, longitude } });
 
 		res.status(200).send('Post updated successfully.');
 	} catch (error) {
@@ -172,7 +172,7 @@ app.delete("/posts/:_id", async (req, res) => {
 		const postsCollection = db.collection('Images');
 
 		// Find the post
-		const post = await postsCollection.findOne({ _id: new mongodb.ObjectID(_id) });
+		const post = await postsCollection.findOne({ _id: new ObjectId(_id) });
 		if (!post) {
 			return res.status(404).send('Post not found.');
 		}
@@ -185,7 +185,7 @@ app.delete("/posts/:_id", async (req, res) => {
 		}
 
 		// Delete the post from the database
-		await postsCollection.deleteOne({ _id: new mongodb.ObjectID(id) });
+		await postsCollection.deleteOne({ _id: new ObjectId(_id) });
 
 		res.send('Post deleted successfully.');
 	} catch (e) {
@@ -236,7 +236,7 @@ app.put("/api/locations/:_id", async (req, res) => {
 		const locationsCollection = db.collection('Locations');
 
 		// Find the location by its ID
-		const location = await locationsCollection.findOne({ _id: new mongodb.ObjectID(_id) });
+		const location = await locationsCollection.findOne({ _id: new ObjectId(_id) });
 		if (!location) {
 			return res.status(404).send('Location not found.');
 		}
@@ -246,7 +246,7 @@ app.put("/api/locations/:_id", async (req, res) => {
 		const locationDetails = response.data.results[0];
 
 		// Update the latitude, longitude, and location name of the location
-		await locationsCollection.updateOne({ _id: new mongodb.ObjectID(locationId) }, { $set: { latitude, longitude, locationName: locationDetails.formatted_address } });
+		await locationsCollection.updateOne({ _id: new ObjectId(_id) }, { $set: { latitude, longitude, locationName: locationDetails.formatted_address } });
 
 		res.status(200).send('Location updated successfully.');
 	} catch (error) {
@@ -282,7 +282,7 @@ app.delete("/api/locations/:_id", async (req, res) => {
 		const imagesCollection = db.collection('Images');
 
 		// Find the location to delete
-		const location = await locationsCollection.findOne({ _id: new mongodb.ObjectID(_id) });
+		const location = await locationsCollection.findOne({ _id: new ObjectId(_id) });
 		if (!location) {
 			return res.status(404).send('Location not found.');
 		}
@@ -291,7 +291,7 @@ app.delete("/api/locations/:_id", async (req, res) => {
 		await imagesCollection.deleteMany({ locationId: _id });
 
 		// Delete the location
-		await locationsCollection.deleteOne({ _id: new mongodb.ObjectID(_id) });
+		await locationsCollection.deleteOne({ _id: new ObjectId(_id) });
 
 		res.send('Location and associated images deleted successfully.');
 	} catch (error) {
@@ -441,7 +441,7 @@ app.put("/api/users/:_id", async (req, res) => {
 		const db = client.db("COP4331-G6-LP");
 
 		// Update the user's data
-		await db.collection("Users").updateOne({ _id: new ObjectID(_id) }, { $set: { FirstName: firstName, LastName: lastName, Email: email } });
+		await db.collection("Users").updateOne({ _id: new ObjectId(_id) }, { $set: { FirstName: firstName, LastName: lastName, Email: email } });
 
 		res.send('User data updated successfully.');
 	} catch (error) {
@@ -537,7 +537,7 @@ app.put("/api/users/:_id/password", async (req, res) => {
 		const hashedPassword = await bcrypt.hash(newPassword, 10);
 
 		// Update the user's password
-		await db.collection("Users").updateOne({ _id: new ObjectID(_id) }, { $set: { Password: hashedPassword } });
+		await db.collection("Users").updateOne({ _id: new ObjectId(_id) }, { $set: { Password: hashedPassword } });
 
 		res.send('Password updated successfully.');
 	} catch (error) {
