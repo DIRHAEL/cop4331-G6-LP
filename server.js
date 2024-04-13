@@ -8,6 +8,8 @@ const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const { v4: uuidv4 } = require('uuid');
 const sharp = require("sharp");
+const exifParser = require("exif-parser");
+const axios = require("axios");
 const path = require("path");
 const PORT = process.env.PORT || 5000;
 
@@ -17,13 +19,13 @@ const app = express();
 app.set("port", process.env.PORT || 5000);
 
 
-// Your MongoDB connection string
-// const uri = "mongodb+srv://thebeast:COP4331-G6@cop4331-g6-lp.rvnbxnv.mongodb.net/?retryWrites=true&w=majority&appName=COP4331-G6-LP";
 require("dotenv").config();
 const url = process.env.MONGODB_URI;
 const smtpUsername = process.env.SMTP_USERNAME;
 const smtpPassword = process.env.SMTP_PASSWORD;
+const gMapsKey = process.env.GMAPS_API_KEY;
 const MongoClient = require("mongodb").MongoClient;
+const ObjectId = require("mongodb").ObjectId;
 const client = new MongoClient(url);
 client.connect(console.log("mongodb connected"));
 app.use(cors());
@@ -49,15 +51,22 @@ const generateFileName = (bytes = 32) => crypto.randomBytes(bytes).toString('hex
 /////////////// IMAGE ENDPOINTS ///////////////
 
 // Fetch Images Endpoint
+// when specifying location id, it's not returning the images with those ids just all of them
 app.get('/posts/:username/:locationId?', async (req, res) => {
 	try {
 		const username = req.params.username;
 		const locationId = req.params.locationId;
+		// console.log(locationId);
 		const db = client.db('COP4331-G6-LP');
 		const query = { username: username };
+		const locationsCollection = db.collection('Locations');
 
 		// If a locationId is provided, add it to the query
 		if (locationId) {
+			const location = await locationsCollection.findOne({ _id: new ObjectId(locationId) });
+			if (!location) {
+				return res.status(404).send('Location not found.');
+			}
 			query.locationId = locationId;
 		}
 
@@ -82,7 +91,7 @@ app.post('/posts', upload.array('image', 10), async (req, res) => {
 		const files = req.files;
 		const caption = req.body.caption;
 		const username = req.body.username;
-		const locationName = req.body.locationName;
+		const locationId = req.body.locationId; // Get the locationId from the request body
 		const db = client.db('COP4331-G6-LP');
 		const postsCollection = db.collection('Images');
 
@@ -94,25 +103,20 @@ app.post('/posts', upload.array('image', 10), async (req, res) => {
 		for (let file of files) {
 			const imageName = generateFileName();
 
-			// const fileBuffer = await sharp(file.buffer)
-			// 	.resize({ height: 1920, width: 1080, fit: "contain" })
-			// 	.toBuffer();
-
 			const fileBuffer = file.buffer;
 
 			// Extract EXIF data
-			const metadata = await sharp(file.buffer).metadata();
-			const exifData = metadata.exif;
-			let latitude, longitude;
-			if (exifData && exifData.gps) {
-				latitude = exifData.gps.GPSLatitude;
-				longitude = exifData.gps.GPSLongitude;
-			} else {
-				// Handle the case where there is no EXIF data
-				console.log('No EXIF data found.');
-				latitude = null;
-				longitude = null;
-			}
+			// const parser = exifParser.create(file.buffer);
+			// const result = parser.parse();
+			// let latitude, longitude;
+			// if (result && result.tags && result.tags.GPSLatitude && result.tags.GPSLongitude) {
+			// 	latitude = result.tags.GPSLatitude;
+			// 	longitude = result.tags.GPSLongitude;
+			// } else {
+			// 	console.log('No EXIF data found.');
+			// 	latitude = null;
+			// 	longitude = null;
+			// }
 
 			await uploadFile(fileBuffer, imageName, file.mimetype);
 
@@ -120,11 +124,8 @@ app.post('/posts', upload.array('image', 10), async (req, res) => {
 				imageName,
 				caption,
 				username,
-				locationName,
+				locationId,
 				date: new Date(),
-				latitude,  // Add latitude to the document
-				longitude, // Add longitude to the document
-				// Add other fields as needed
 			});
 		}
 
@@ -135,27 +136,58 @@ app.post('/posts', upload.array('image', 10), async (req, res) => {
 	}
 });
 
-// Delete Image Endpoint
-// some issue here
-app.delete("/api/posts/:id", async (req, res) => {
+
+/// Modify Lat and Long on images
+app.put('/posts/:_id', async (req, res) => {
 	try {
-		const id = req.params.id;
+		const _id = req.params._id;
+		const { latitude, longitude } = req.body;
+		const db = client.db('COP4331-G6-LP');
+		const postsCollection = db.collection('Images');
+
+		// Find the post by its ID
+		const post = await postsCollection.findOne({ _id: new ObjectId(_id) });
+
+		if (!post) {
+			return res.status(404).json({ error: 'Post not found.' });
+		}
+
+		// Update the latitude and longitude of the post
+		await postsCollection.updateOne({ _id: new ObjectId(_id) }, { $set: { latitude, longitude } });
+
+		res.status(200).send('Post updated successfully.');
+	} catch (error) {
+		console.error(error);
+		res.status(500).send('An error occurred while updating the post.');
+	}
+});
+
+
+// Delete Image Endpoint
+app.delete("/posts/:_id", async (req, res) => {
+	try {
+		const _id = req.params._id;
 		const db = client.db('COP4331-G6-LP');
 		const postsCollection = db.collection('Images');
 
 		// Find the post
-		const post = await postsCollection.findOne({ _id: new mongodb.ObjectID(id) });
+		const post = await postsCollection.findOne({ _id: new ObjectId(_id) });
 		if (!post) {
 			return res.status(404).send('Post not found.');
 		}
 
-		// Delete the image from S3
-		await deleteFile(post.imageName);
+		// Delete the image from S3, issue here
+		console.log(post.imageName);
+		const deleteResult = await deleteFile(post.imageName);
+		if (!deleteResult.success) {
+			// If the image deletion failed, send an error response
+			return res.status(500).send('An error occurred while deleting the image from S3.');
+		}
 
 		// Delete the post from the database
-		await postsCollection.deleteOne({ _id: new mongodb.ObjectID(id) });
+		await postsCollection.deleteOne({ _id: new ObjectId(_id) });
 
-		res.send(post);
+		res.send('Post deleted successfully.');
 	} catch (e) {
 		console.error(e);
 		res.status(500).send('An error occurred while deleting the post.');
@@ -163,51 +195,105 @@ app.delete("/api/posts/:id", async (req, res) => {
 });
 
 
+
 /////////////// LOCATION ENDPOINTS ///////////////
 
 // Create Location Endpoint
 app.post("/api/locations", async (req, res) => {
 	try {
-		const { locationName, title, username, latitude, longitude } = req.body;
+		const { title, username, latitude, longitude } = req.body;
 		const db = client.db('COP4331-G6-LP');
 		const locationsCollection = db.collection('Locations');
 
+		// Use Google Maps Reverse Geocoding API to get location details from coordinates
+		const response = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${gMapsKey}`);
+		const locationDetails = response.data.results[0];
+
 		// Insert the new location into the Locations collection
 		const result = await locationsCollection.insertOne({
-			locationName,
+			locationName: locationDetails.formatted_address, // Use the formatted address from the Google Maps API
 			title,
 			username,
 			latitude,
-			longitude
+			longitude,
+			// images: [] // Initialize an empty array for images
 		});
 
-		res.status(201).send('Location created successfully.');
+		// Return the new location's ID in the response
+		res.status(201).json({ message: 'Location created successfully.', markerId: result.insertedId });
 	} catch (error) {
 		console.error(error);
 		res.status(500).send('An error occurred while creating the location.');
 	}
 });
 
-// Delete Location and Associated Images Endpoint
-// some issues here
-app.delete("/api/locations/:id", async (req, res) => {
+// Modify Location Lat/Long
+app.put("/api/locations/:_id", async (req, res) => {
 	try {
-		const locationId = req.params.id;
+		const _id = req.params._id;
+		const { latitude, longitude } = req.body;
+		const db = client.db('COP4331-G6-LP');
+		const locationsCollection = db.collection('Locations');
+
+		// Find the location by its ID
+		const location = await locationsCollection.findOne({ _id: new ObjectId(_id) });
+		if (!location) {
+			return res.status(404).send('Location not found.');
+		}
+
+		// Use Google Maps Reverse Geocoding API to get location details from coordinates
+		const response = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${gMapsKey}`);
+		const locationDetails = response.data.results[0];
+
+		// Update the latitude, longitude, and location name of the location
+		await locationsCollection.updateOne({ _id: new ObjectId(_id) }, { $set: { latitude, longitude, locationName: locationDetails.formatted_address } });
+
+		res.status(200).send('Location updated successfully.');
+	} catch (error) {
+		console.error(error);
+		res.status(500).send('An error occurred while updating the location.');
+	}
+});
+
+// Fetch Locations
+app.get("/api/locations/:username", async (req, res) => {
+	try {
+		const username = req.params.username;
+		const db = client.db('COP4331-G6-LP');
+		const locationsCollection = db.collection('Locations');
+
+		// Find the locations associated with the username
+		const locations = await locationsCollection.find({ username: username }).toArray();
+
+		res.status(200).json(locations);
+	} catch (error) {
+		console.error(error);
+		res.status(500).send('An error occurred while fetching the locations.');
+	}
+});
+
+// Delete Location and Associated Images Endpoint
+// some issues here, needs testing
+app.delete("/api/locations/:_id", async (req, res) => {
+	try {
+		const _id = req.params._id;
 		const db = client.db('COP4331-G6-LP');
 		const locationsCollection = db.collection('Locations');
 		const imagesCollection = db.collection('Images');
 
 		// Find the location to delete
-		const location = await locationsCollection.findOne({ _id: new mongodb.ObjectID(locationId) });
+		const location = await locationsCollection.findOne({ _id: new ObjectId(_id) });
 		if (!location) {
 			return res.status(404).send('Location not found.');
 		}
+		
+		// Make sure to also delete it from the s3 bucket
 
 		// Delete all images associated with the location name
-		await imagesCollection.deleteMany({ locationName: location.locationName });
+		await imagesCollection.deleteMany({ locationId: _id });
 
 		// Delete the location
-		await locationsCollection.deleteOne({ _id: new mongodb.ObjectID(locationId) });
+		await locationsCollection.deleteOne({ _id: new ObjectId(_id) });
 
 		res.send('Location and associated images deleted successfully.');
 	} catch (error) {
@@ -349,17 +435,133 @@ app.post("/api/resend-verification", async (req, res) => {
 	}
 });
 
+// Change User Data (name, email) make sure to reverify email
+app.put("/api/users/:_id", async (req, res) => {
+	try {
+		const _id = req.params._id;
+		const { firstName, lastName, email } = req.body;
+		const db = client.db("COP4331-G6-LP");
 
-// Updated /api/login endpoint to include bcrypt password comparison
+		// Update the user's data
+		await db.collection("Users").updateOne({ _id: new ObjectId(_id) }, { $set: { FirstName: firstName, LastName: lastName, Email: email } });
+
+		res.send('User data updated successfully.');
+	} catch (error) {
+		console.error(error);
+		res.status(500).send('An error occurred while updating user data.');
+	}
+});
+
+
+// Forgot Password Endpoint
+app.post("/api/forgot-password", async (req, res) => {
+	try {
+		const { email } = req.body;
+		const db = client.db("COP4331-G6-LP");
+		const user = await db.collection("Users").findOne({ Email: email });
+
+		if (!user) {
+			return res.status(404).send('User not found.');
+		}
+
+		// Generate a password reset token and save it to the user's record
+		const passwordResetToken = generatePasswordResetToken();
+		await db.collection("Users").updateOne({ _id: user._id }, { $set: { PasswordResetToken: passwordResetToken } });
+
+		// Send password reset email
+		sendPasswordResetEmail(email, passwordResetToken);
+
+		res.send('Password reset email sent.');
+	} catch (error) {
+		console.error(error);
+		res.status(500).send('An error occurred while processing your request.');
+	}
+});
+
+app.post('/reset-password', async (req, res) => {
+	try {
+		const { token } = req.query;
+		const { newPassword } = req.body;
+		const db = client.db('COP4331-G6-LP');
+
+		// Find user by password reset token
+		const user = await db.collection('Users').findOne({ PasswordResetToken: token });
+
+		if (!user) {
+			return res.status(404).json({ error: 'User not found or invalid token' });
+		}
+
+		// Hash the new password
+		const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+		// Update the user's password and remove the password reset token
+		await db.collection('Users').updateOne({ _id: user._id }, { $set: { Password: hashedPassword, PasswordResetToken: null } });
+
+		return res.status(200).json({ message: 'Password reset successfully' });
+	} catch (error) {
+		console.error('Error resetting password:', error);
+		return res.status(500).json({ error: 'An error occurred while resetting password' });
+	}
+});
+
+
+function generatePasswordResetToken() {
+	return uuidv4();
+}
+
+async function sendPasswordResetEmail(email, passwordResetToken) {
+	const mailOptions = {
+		from: 'MemoryMap <memorymap.mern@gmail.com>',
+		to: email,
+		subject: 'MemoryMap Password Reset',
+		text: `Please click on the following link to reset your password: https://memorymap.xyz/reset-password?token=${passwordResetToken}`,
+		html: `<p>Please click on the following link to reset your password: https://memorymap.xyz/reset-password?token=${passwordResetToken}</p>`
+	};
+
+	await transporter.sendMail(mailOptions, (err, info) => {
+		if (err) {
+			console.error(err);
+		} else {
+			console.log('Email sent: ' + info.response);
+		}
+	});
+}
+
+
+// Change Password Endpoint
+app.put("/api/users/:_id/password", async (req, res) => {
+	try {
+		const _id = req.params._id;
+		const { newPassword } = req.body;
+		const db = client.db("COP4331-G6-LP");
+
+		// Hash the new password
+		const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+		// Update the user's password
+		await db.collection("Users").updateOne({ _id: new ObjectId(_id) }, { $set: { Password: hashedPassword } });
+
+		res.send('Password updated successfully.');
+	} catch (error) {
+		console.error(error);
+		res.status(500).send('An error occurred while updating the password.');
+	}
+});
+
+
+// Add it so that it calls location fetching and returns all location information based on username
 app.post("/api/login", async (req, res, next) => {
 	const { login, password } = req.body;
 
 	let error = "";
 	let user;
+	let locations = []; // Declare locations here
 
 	try {
 		const db = client.db("COP4331-G6-LP");
-		user = await db.collection("Users").findOne({ Email: login });
+
+		// Find the user by either email or username
+		user = await db.collection("Users").findOne({ $or: [{ Email: login }, { Username: login }] });
 		if (user) {
 			const passwordMatch = await bcrypt.compare(password, user.Password);
 			if (!passwordMatch) {
@@ -368,6 +570,11 @@ app.post("/api/login", async (req, res, next) => {
 			}
 		} else {
 			error = "User not found";
+		}
+
+		// If there is no error, fetch the locations associated with the user
+		if (!error) {
+			locations = await db.collection('Locations').find({ username: user.Username }).toArray();
 		}
 	} catch (e) {
 		error = e.toString();
@@ -379,6 +586,7 @@ app.post("/api/login", async (req, res, next) => {
 		lastName: user ? user.LastName : "",
 		username: user ? user.Username : "",
 		validated: user ? user.Validated : false,
+		locations: locations, // Add the locations to the response
 		error: error,
 	};
 
@@ -386,7 +594,6 @@ app.post("/api/login", async (req, res, next) => {
 });
 
 // For Heroku deployment
-
 // Server static assets if in production
 if (process.env.NODE_ENV === "production") {
 	// Set static folder
