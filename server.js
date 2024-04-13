@@ -5,8 +5,6 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
-const mongodb = require("mongodb");
-const ObjectId = mongodb.ObjectID;
 const nodemailer = require("nodemailer");
 const { v4: uuidv4 } = require('uuid');
 const sharp = require("sharp");
@@ -27,6 +25,7 @@ const smtpUsername = process.env.SMTP_USERNAME;
 const smtpPassword = process.env.SMTP_PASSWORD;
 const gMapsKey = process.env.GMAPS_API_KEY;
 const MongoClient = require("mongodb").MongoClient;
+const ObjectID = require("mongodb").ObjectID;
 const client = new MongoClient(url);
 client.connect(console.log("mongodb connected"));
 app.use(cors());
@@ -64,7 +63,7 @@ app.get('/posts/:username/:locationId?', async (req, res) => {
 
 		// If a locationId is provided, add it to the query
 		if (locationId) {
-			const location = await locationsCollection.findOne({ _id: locationId });
+			const location = await locationsCollection.findOne({ _id: new ObjectID(locationId) });
 			if (!location) {
 				return res.status(404).send('Location not found.');
 			}
@@ -147,14 +146,14 @@ app.put('/posts/:_id', async (req, res) => {
 		const postsCollection = db.collection('Images');
 
 		// Find the post by its ID
-		const post = await postsCollection.findOne({ _id: new ObjectId(_id) });
+		const post = await postsCollection.findOne({ _id: new ObjectID(_id) });
 
 		if (!post) {
 			return res.status(404).json({ error: 'Post not found.' });
 		}
 
 		// Update the latitude and longitude of the post
-		await postsCollection.updateOne({ _id: new ObjectId(_id) }, { $set: { latitude, longitude } });
+		await postsCollection.updateOne({ _id: new ObjectID(_id) }, { $set: { latitude, longitude } });
 
 		res.status(200).send('Post updated successfully.');
 	} catch (error) {
@@ -442,7 +441,7 @@ app.put("/api/users/:_id", async (req, res) => {
 		const db = client.db("COP4331-G6-LP");
 
 		// Update the user's data
-		await db.collection("Users").updateOne({ _id: new ObjectId(_id) }, { $set: { FirstName: firstName, LastName: lastName, Email: email } });
+		await db.collection("Users").updateOne({ _id: new ObjectID(_id) }, { $set: { FirstName: firstName, LastName: lastName, Email: email } });
 
 		res.send('User data updated successfully.');
 	} catch (error) {
@@ -538,7 +537,7 @@ app.put("/api/users/:_id/password", async (req, res) => {
 		const hashedPassword = await bcrypt.hash(newPassword, 10);
 
 		// Update the user's password
-		await db.collection("Users").updateOne({ _id: new ObjectId(_id) }, { $set: { Password: hashedPassword } });
+		await db.collection("Users").updateOne({ _id: new ObjectID(_id) }, { $set: { Password: hashedPassword } });
 
 		res.send('Password updated successfully.');
 	} catch (error) {
