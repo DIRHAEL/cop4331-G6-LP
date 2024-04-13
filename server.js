@@ -64,7 +64,7 @@ app.get('/posts/:username/:locationId?', async (req, res) => {
 
 		// If a locationId is provided, add it to the query
 		if (locationId) {
-			const location = await locationsCollection.findOne({ _id: new mongodb.ObjectID(locationId) });
+			const location = await locationsCollection.findOne({ _id: locationId });
 			if (!location) {
 				return res.status(404).send('Location not found.');
 			}
