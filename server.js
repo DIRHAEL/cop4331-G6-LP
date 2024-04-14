@@ -164,7 +164,6 @@ app.put('/posts/:_id', async (req, res) => {
 
 
 // Delete Image Endpoint
-// some issue here, needs testing
 app.delete("/posts/:_id", async (req, res) => {
 	try {
 		const _id = req.params._id;
@@ -177,13 +176,13 @@ app.delete("/posts/:_id", async (req, res) => {
 			return res.status(404).send('Post not found.');
 		}
 
-		// Delete the image from S3
-		console.log(post.imageName);
-		const deleteResult = await deleteFile(post.imageName);
-		if (!deleteResult.success) {
-			// If the image deletion failed, send an error response
-			return res.status(500).send('An error occurred while deleting the image from S3.');
-		}
+		// Delete the image from S3, issue here
+		// console.log(post.imageName);
+		// const deleteResult = await deleteFile(post.imageName);
+		// if (!deleteResult.success) {
+		// 	// If the image deletion failed, send an error response
+		// 	return res.status(500).send('An error occurred while deleting the image from S3.');
+		// }
 
 		// Delete the post from the database
 		await postsCollection.deleteOne({ _id: new ObjectId(_id) });
@@ -288,8 +287,6 @@ app.delete("/api/locations/:_id", async (req, res) => {
 			return res.status(404).send('Location not found.');
 		}
 		
-		// Make sure to also delete it from the s3 bucket
-
 		// Delete all images associated with the location name
 		await imagesCollection.deleteMany({ locationId: _id });
 
@@ -436,6 +433,9 @@ app.post("/api/resend-verification", async (req, res) => {
 	}
 });
 
+
+/////////// OPTIONAL API JUST IN CASE WE CAN USE IT//////////////////////////
+
 // Change User Data (name, email) make sure to reverify email
 app.put("/api/users/:_id", async (req, res) => {
 	try {
@@ -452,7 +452,6 @@ app.put("/api/users/:_id", async (req, res) => {
 		res.status(500).send('An error occurred while updating user data.');
 	}
 });
-
 
 // Forgot Password Endpoint
 app.post("/api/forgot-password", async (req, res) => {
@@ -527,7 +526,6 @@ async function sendPasswordResetEmail(email, passwordResetToken) {
 		}
 	});
 }
-
 
 // Change Password Endpoint
 app.put("/api/users/:_id/password", async (req, res) => {
