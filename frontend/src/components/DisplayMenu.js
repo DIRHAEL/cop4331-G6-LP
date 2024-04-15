@@ -13,9 +13,9 @@ import Footer from "../components/ModalInsertMarker/Footer";
 
 import MapMarker from "../components/MapMarker";
 
-const StepperPage = () => {
+const StepperPage = ({ openModal }) => {
   const [current, setCurrent] = useState(0);
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen, onClose } = useDisclosure();
 
   const [markerPosition, setMarkerPosition] = useState(null);
 
@@ -57,22 +57,14 @@ const StepperPage = () => {
   ];
 
   return (
-    <div className="h-screen bg-black">
-      <ChakraProvider>
-        <Button colorScheme="gray" onClick={onOpen}>
-          Open Modal
-        </Button>
-      </ChakraProvider>
-
-      <CustomModal
-        isOpen={isOpen}
-        onClose={onClose}
-        modalHeader={<Title value={current} />} // Has to change dynamically
-        modalBody={<Body insertJsx={body[current]} />}
-        modalFooter={footers[current]} // This had to change dynamically
-        modalSize={"full"}
-      />
-    </div>
+    <CustomModal
+      isOpen={isOpen || openModal}
+      onClose={onClose}
+      modalHeader={<Title value={current} />} // Has to change dynamically
+      modalBody={<Body insertJsx={body[current]} />}
+      modalFooter={footers[current]} // This had to change dynamically
+      modalSize={"full"}
+    />
   );
 };
 

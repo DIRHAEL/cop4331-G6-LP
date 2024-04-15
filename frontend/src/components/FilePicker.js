@@ -28,19 +28,24 @@ export default function FilePicker() {
 
     try {
       // TODO sending imgaes to the api
-      const formData = new FormData();
+      const filesInsert = [];
       acceptedFiles.forEach((file) => {
-        formData.append("files[]", file);
+        filesInsert.push(file);
       });
 
       let obj = {
-        userName: "",
+        files: acceptedFiles,
+        username: "RickL",
+        caption: "whater",
+        locationId: "66197f796b5389daa4f06dec",
       };
       // login : sdfsdfas
       // password : dsfsdafasd
       let js = JSON.stringify(obj);
 
-      const response = await fetch(buildPath("api/createuser"), {
+      console.log(js);
+
+      const response = await fetch(buildPath("api/posts"), {
         method: "POST",
         body: js,
         headers: { "Content-Type": "application/json" },

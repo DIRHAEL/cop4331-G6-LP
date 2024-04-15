@@ -8,6 +8,10 @@ import HomePage from "./pages/HomePage";
 import MapPage from "./pages/MapPage";
 import TestPage from "./pages/TestPage";
 import Stepper from "./pages/StepperPage";
+import Practice from "./components/practiceImage";
+import Gallery from "./pages/GallaryPage";
+
+import GalleryComponet from "./components/Gallery/GalleryGrid";
 
 function App() {
   return (
@@ -21,6 +25,8 @@ function App() {
         <Route path="map" index element={<MapPage />} />
         <Route path="test" index element={<TestPage />} />
         <Route path="stepper" index element={<Stepper />} />
+        <Route path="image" index element={<Practice />} />
+        <Route path="gallery" index element={<Gallery />} />
       </Routes>
     </BrowserRouter>
   );

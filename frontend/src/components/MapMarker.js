@@ -9,13 +9,13 @@ import {
   MapMouseEvent,
 } from "@vis.gl/react-google-maps";
 
-const App = ({ insertFunction, markerCoord }) => {
+const App = ({ markerCoord, insertFunction }) => {
   return (
     <APIProvider apiKey={"AIzaSyABVpzV6o5YTJ6FbCKHgMd_SUspf0AYJO0"}>
       <Map
+        mapId={"<Your custom MapId here>"}
         defaultZoom={12}
         defaultCenter={{ lat: 53.54992, lng: 10.00678 }}
-        mapId={"<Your custom MapId here>"}
         onClick={insertFunction}
         draggableCursor={"crosshair"}
       >

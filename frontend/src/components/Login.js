@@ -84,7 +84,6 @@ const Login = () => {
               });
 
               const res = JSON.parse(await response.text());
-
               console.log(res);
 
               if (res.id <= 0) {
