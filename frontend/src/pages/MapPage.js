@@ -1,5 +1,5 @@
 import React from "react";
-import { ChakraProvider, Flex, Button } from "@chakra-ui/react";
+import { ChakraProvider, Flex, Button, Box } from "@chakra-ui/react";
 import MapComponent from "../components/DisplayMarker";
 import ModalCustom from "../components/Modal";
 import { useDisclosure } from "@chakra-ui/react";
@@ -13,12 +13,22 @@ const MapPage = () => {
 
   const [locations, setLocations] = useState([]);
 
+  const handleSignOut = () => {
+    localStorage.removeItem("user_data");
+    window.location.href = "/login";
+  };
+
   return (
     <ChakraProvider>
       <Flex direction="column" h="100vh">
         {/* Navigation Bar */}
-        <Flex bg="blue.500" p="4" align="center" justify="center">
-          <span style={{ color: "white", fontWeight: "bold" }}>Navigation</span>
+        <Flex bg="black" p="4" align="center" justify="space-between">
+          <span style={{ color: "white", fontWeight: "bold" }}>Memory Map</span>
+          <Box>
+            <Button onClick={handleSignOut} colorScheme="purple">
+              Sign Out
+            </Button>
+          </Box>
         </Flex>
 
         {/* Main Content */}
@@ -30,13 +40,9 @@ const MapPage = () => {
             align="center"
             justify="center"
             flexBasis="20%" // Adjusted to be 20% smaller
+            bg="black"
           >
-            <Button
-              onClick={onOpen}
-              bg="blue.500"
-              color="white"
-              _hover={{ bg: "blue.600" }}
-            >
+            <Button onClick={onOpen} colorScheme="purple">
               Add Pin
             </Button>
           </Flex>

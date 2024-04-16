@@ -90,6 +90,7 @@ function ProgressStepsContainer({
         setFiles([]);
 
         setLocations((locations) => [...locations, newMarker]);
+
         closeModal();
       } catch (error) {
         console.error("Error uploading files:", error);

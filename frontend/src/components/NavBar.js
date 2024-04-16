@@ -5,6 +5,12 @@ import { Layer } from "baseui/layer";
 import { ChevronDown, Delete, Overflow, Upload } from "baseui/icon";
 import { AppNavBar, setItemActive, NavItem } from "baseui/app-nav-bar";
 import { useState } from "react";
+import { Provider as StyletronProvider } from "styletron-react";
+import { Client as Styletron } from "styletron-engine-monolithic";
+import { DarkTheme, BaseProvider, styled } from "baseui";
+import { FileUploader } from "baseui/file-uploader";
+
+const engine = new Styletron();
 
 export default function Example() {
   const [css] = useStyletron();
@@ -54,7 +60,8 @@ export default function Example() {
   }
 
   return (
-    <React.Fragment>
+    <StyletronProvider value={engine}>
+      <BaseProvider theme={DarkTheme}></BaseProvider>
       <Button onClick={() => setIsNavVisible((prev) => !prev)}>
         {isNavVisible ? "Hide" : "Show"} navigation bar
       </Button>
@@ -82,6 +89,6 @@ export default function Example() {
           </div>
         </Layer>
       )}
-    </React.Fragment>
+    </StyletronProvider>
   );
 }

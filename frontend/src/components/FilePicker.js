@@ -17,7 +17,13 @@ const Centered = styled("div", {
   height: "100%",
 });
 
-export default function FilePicker({ setFiles }) {
+const ImageThumbnail = styled("img", {
+  width: "1em",
+  height: "1em",
+  objectFit: "cover",
+});
+
+export default function FilePicker({ files, setFiles }) {
   const [errorMessage, setErrorMessage] = useState("");
 
   const handleFileUpload = (acceptedFiles, rejectedFiles) => {
@@ -35,9 +41,20 @@ export default function FilePicker({ setFiles }) {
       <BaseProvider theme={DarkTheme}>
         <FileUploader
           onDrop={handleFileUpload}
-          accept="image/jpg, image/png"
+          accept=".jpg, .png, .jpeg"
           errorMessage={errorMessage}
         />
+        <div className="mt-24 flex flex-col items-center">
+          {files.map((file, index) => (
+            <div key={index}>
+              <ImageThumbnail
+                src={URL.createObjectURL(file)}
+                alt={`upload-${index}`}
+              />
+              <div>{file.name}</div>
+            </div>
+          ))}
+        </div>
       </BaseProvider>
     </StyletronProvider>
   );

@@ -13,14 +13,16 @@ import Gallery from "./pages/GallaryPage";
 
 import GalleryComponet from "./components/Gallery/GalleryGrid";
 
+import ResetPage from "./pages/ResetPage";
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="login" index element={<LoginPage />} />
-
+        <Route path="forgot" index element={<ResetPage />} />
         <Route path="/" index element={<MapPage />} />
-        <Route path="/home" index element={<HomePage />} />
+        <Route path="home" index element={<HomePage />} />
         {/* <Route path="/cards" index element={<CardPage />} /> */}
         <Route path="map" index element={<MapPage />} />
         <Route path="test" index element={<TestPage />} />

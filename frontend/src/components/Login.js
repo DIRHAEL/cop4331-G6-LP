@@ -20,8 +20,18 @@ const Login = () => {
   const [userName, setUserName] = useState("");
   const [signupEmail, setSignUpEmail] = useState("");
   const [signupPassword, setSignUpPassword] = useState("");
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
 
   const [message, setMessage] = useState("");
+
+  function isValidPassword(password) {
+    const regex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$/;
+    return regex.test(password);
+  }
+
+  function forgotPassword() {
+    window.location.href = "/forgot";
+  }
 
   return (
     <ChakraProvider>
@@ -56,7 +66,7 @@ const Login = () => {
             </span>{" "}
             to your account
           </p>
-          <p className="text-center text-xs mb-5 text-[#5B625F]">
+          <p className="text-center text-xs mb-5 text-white">
             Welcome back! Please enter your details
           </p>
 
@@ -85,7 +95,14 @@ const Login = () => {
                 console.log(res);
 
                 if (res.id <= 0) {
-                  alert("User/Password combination incorrect");
+                  toast({
+                    title: "An error occurred.",
+                    description: "Username/password incorrect",
+                    status: "error",
+                    position: "top",
+                    duration: 9000,
+                    isClosable: true,
+                  });
                 } else {
                   const user = {
                     firstName: res.firstName,
@@ -104,7 +121,7 @@ const Login = () => {
           >
             <Form.Field className="grid mb-[10px]" name="email">
               <div className="flex items-baseline justify-between">
-                <Form.Label className="text-[15px] font-medium leading-[35px] text-[#5B625F]">
+                <Form.Label className="text-[15px] font-medium leading-[35px] text-white">
                   Email
                 </Form.Label>
                 <Form.Message
@@ -133,7 +150,7 @@ const Login = () => {
             </Form.Field>
             <Form.Field className="grid mb-[10px]" name="question">
               <div className="flex items-baseline justify-between">
-                <Form.Label className="text-[15px] font-medium leading-[35px] text-[#5B625F]">
+                <Form.Label className="text-[15px] font-medium leading-[35px] text-white">
                   Password
                 </Form.Label>
                 <Form.Message
@@ -168,8 +185,8 @@ const Login = () => {
           <p className="text-white text-center text-xl leading-normal font-extrabold">
             Create a new account
           </p>
-          <p className="text-center text-xs mb-5 text-[#5B625F]" s>
-            To use appName enter your details
+          <p className="text-center text-xs mb-5 text-white" s>
+            To use Memory Map enter your details
           </p>
           <Form.Root
             className="w-[260px]"
@@ -183,6 +200,20 @@ const Login = () => {
                 email: signupEmail,
                 password: signupPassword,
               };
+
+              if (!isValidPassword(signupPassword)) {
+                toast({
+                  title: "Password Error",
+                  description:
+                    "Password must be at least 8 characters long, include an uppercase letter, a lowercase letter, and a number.",
+                  status: "error",
+                  position: "top",
+                  duration: 12000,
+                  isClosable: true,
+                });
+                return;
+              }
+
               let js = JSON.stringify(obj);
               console.log(js);
 
@@ -208,6 +239,24 @@ const Login = () => {
                     duration: "9000",
                     isClosable: true,
                   });
+
+                  toast({
+                    title: "Reminder",
+                    description: "Please verify your email.",
+                    status: "info",
+                    position: "top-left",
+                    duration: "9000",
+                    isClosable: true,
+                  });
+                } else if (serverCode === 400) {
+                  toast({
+                    title: "An error occurred.",
+                    description: "Username/email already exists",
+                    status: "error",
+                    position: "top",
+                    duration: 9000,
+                    isClosable: true,
+                  });
                 }
 
                 // Check if the username or email already exists
@@ -221,7 +270,7 @@ const Login = () => {
           >
             <Form.Field className="grid mb-[10px]" name="email">
               <div className="flex items-baseline justify-between">
-                <Form.Label className="text-[15px] font-medium leading-[35px] text-[#5B625F]">
+                <Form.Label className="text-[15px] font-medium leading-[35px] text-white">
                   First Name
                 </Form.Label>
                 <Form.Message
@@ -244,7 +293,7 @@ const Login = () => {
             </Form.Field>
             <Form.Field className="grid mb-[10px]" name="question">
               <div className="flex items-baseline justify-between">
-                <Form.Label className="text-[15px] font-medium leading-[35px] text-[#5B625F]">
+                <Form.Label className="text-[15px] font-medium leading-[35px] text-white">
                   Last Name
                 </Form.Label>
                 <Form.Message
@@ -267,7 +316,7 @@ const Login = () => {
             </Form.Field>
             <Form.Field className="grid mb-[10px]" name="question">
               <div className="flex items-baseline justify-between">
-                <Form.Label className="text-[15px] font-medium leading-[35px] text-[#5B625F]">
+                <Form.Label className="text-[15px] font-medium leading-[35px] text-white">
                   Username
                 </Form.Label>
                 <Form.Message
@@ -290,7 +339,7 @@ const Login = () => {
             </Form.Field>
             <Form.Field className="grid mb-[10px]" name="email">
               <div className="flex items-baseline justify-between">
-                <Form.Label className="text-[15px] font-medium leading-[35px] text-[#5B625F]">
+                <Form.Label className="text-[15px] font-medium leading-[35px] text-white">
                   Email
                 </Form.Label>
                 <Form.Message
@@ -319,7 +368,7 @@ const Login = () => {
             </Form.Field>
             <Form.Field className="grid mb-[10px]" name="question">
               <div className="flex items-baseline justify-between">
-                <Form.Label className="text-[15px] font-medium leading-[35px] text-[#5B625F]">
+                <Form.Label className="text-[15px] font-medium leading-[35px] text-white">
                   Password
                 </Form.Label>
                 <Form.Message
@@ -329,6 +378,7 @@ const Login = () => {
                   Please provide a password
                 </Form.Message>
               </div>
+
               <Form.Control asChild>
                 <input
                   className="box-border bg-black w-full shadow-blackA6 inline-flex h-[35px] appearance-none items-center justify-center rounded-[4px] px-[10px] text-[15px] leading-none text-[#5B625F] focus:text-purple-400 shadow-[0_0_0_1px] outline-none"

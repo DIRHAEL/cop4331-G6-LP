@@ -21,12 +21,15 @@ export default function FilePicker({ markerId }) {
   const [errorMessage, setErrorMessage] = useState("");
   // Retrieve user data from localStorage
   let userData = JSON.parse(localStorage.getItem("user_data"));
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleFileUpload = async (acceptedFiles, rejectedFiles) => {
     if (rejectedFiles.length > 0) {
       setErrorMessage("Please upload only JPG or PNG images.");
       return;
     }
+
+    setIsUploading(true);
 
     //setIsUploading(true); // Set uploading status to true
 
@@ -50,6 +53,8 @@ export default function FilePicker({ markerId }) {
       }
 
       console.log("Images uploaded successfully");
+
+      setIsUploading(false);
     } catch (error) {
       console.error("Error uploading images:", error);
     } finally {
@@ -62,8 +67,9 @@ export default function FilePicker({ markerId }) {
       <BaseProvider theme={DarkTheme}>
         <FileUploader
           onDrop={handleFileUpload}
-          accept="image/jpg, image/png"
+          accept=".jpg, .png, .jpeg"
           errorMessage={errorMessage}
+          progressMessage={isUploading ? "Uploading... hang tight." : ""}
         />
       </BaseProvider>
     </StyletronProvider>

@@ -63,7 +63,7 @@ const StepperPage = ({ openModal, closeModal, locations, setLocations }) => {
     <div className="h-[32rem]">
       <MapMarker markerCoord={markerPosition} insertFunction={placeNewMarker} />
     </div>,
-    <FilePicker setFiles={setFiles} />,
+    <FilePicker files={files} setFiles={setFiles} />,
     <div className="flex h-96 w-full justify-center items-center ">
       <SubmitBttn
         curCord={markerPosition}
