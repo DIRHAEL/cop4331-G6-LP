@@ -26,6 +26,7 @@
     "react-scripts": "5.0.1",
     "react-uid": "^2.3.3",
     "react-virtualized": "^9.22.5",
+    "react-visual-grid": "^0.9.5",
     "styletron-engine-monolithic": "^1.0.0",
     "styletron-react": "^6.1.1",
     "tailwind-merge": "^2.2.1",

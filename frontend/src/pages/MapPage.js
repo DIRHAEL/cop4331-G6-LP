@@ -22,7 +22,7 @@ const MapPage = () => {
     <ChakraProvider>
       <Flex direction="column" h="100vh">
         {/* Navigation Bar */}
-        <Flex bg="black" p="4" align="center" justify="space-between">
+        <Flex bg="#331E3E" p="4" align="center" justify="space-between">
           <span style={{ color: "white", fontWeight: "bold" }}>Memory Map</span>
           <Box>
             <Button onClick={handleSignOut} colorScheme="purple">
