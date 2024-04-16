@@ -82,7 +82,7 @@ const StepperPage = ({ openModal, closeModal, locations, setLocations }) => {
     <CustomModal
       isOpen={openModal}
       onClose={closeModal}
-      modalHeader={<Title is />} // Has to change dynamically
+      modalHeader={<Title value={current} />} // Has to change dynamically
       modalBody={<Body insertJsx={body[current]} />}
       modalFooter={footers[current]} // This had to change dynamically
       modalSize={"full"}
