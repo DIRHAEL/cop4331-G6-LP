@@ -17,48 +17,17 @@ const Centered = styled("div", {
   height: "100%",
 });
 
-export default function FilePicker() {
+export default function FilePicker({ setFiles }) {
   const [errorMessage, setErrorMessage] = useState("");
 
-  const handleFileUpload = async (acceptedFiles, rejectedFiles) => {
+  const handleFileUpload = (acceptedFiles, rejectedFiles) => {
     if (rejectedFiles.length > 0) {
       setErrorMessage("Please upload only JPG or PNG images.");
       return;
     }
 
-    try {
-      // TODO sending imgaes to the api
-      const filesInsert = [];
-      acceptedFiles.forEach((file) => {
-        filesInsert.push(file);
-      });
-
-      let obj = {
-        files: acceptedFiles,
-        username: "RickL",
-        caption: "whater",
-        locationId: "66197f796b5389daa4f06dec",
-      };
-      // login : sdfsdfas
-      // password : dsfsdafasd
-      let js = JSON.stringify(obj);
-
-      console.log(js);
-
-      const response = await fetch(buildPath("api/posts"), {
-        method: "POST",
-        body: js,
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (!response.ok) {
-        throw new Error("Network response was not ok");
-      }
-
-      console.log("Files uploaded successfully");
-    } catch (error) {
-      console.error("Error uploading files:", error);
-    }
+    // Add the new files to the existing files
+    setFiles((prevFiles) => [...prevFiles, ...acceptedFiles]);
   };
 
   return (

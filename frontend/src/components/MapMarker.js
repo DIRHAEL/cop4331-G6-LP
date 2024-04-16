@@ -14,8 +14,8 @@ const App = ({ markerCoord, insertFunction }) => {
     <APIProvider apiKey={"AIzaSyABVpzV6o5YTJ6FbCKHgMd_SUspf0AYJO0"}>
       <Map
         mapId={"<Your custom MapId here>"}
-        defaultZoom={12}
-        defaultCenter={{ lat: 53.54992, lng: 10.00678 }}
+        defaultZoom={2}
+        defaultCenter={{ lat: 34.544932485966136, lng: -41.27020965979835 }}
         onClick={insertFunction}
         draggableCursor={"crosshair"}
       >

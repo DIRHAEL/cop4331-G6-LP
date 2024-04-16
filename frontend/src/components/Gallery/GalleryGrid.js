@@ -52,7 +52,7 @@ function MyMasonryComponent() {
 
   useEffect(() => {
     cache.clearAll();
-    fetch("https://memorymap.xyz/posts/dmedi/661986e1aed87edfd1ea0248")
+    fetch("https://memorymap.xyz/posts/Admintest1/661d7c61209ac3e07fe5e064")
       .then((response) => response.json())
       .then((data) => {
         const newList = data.map((item) => ({

@@ -13,11 +13,16 @@ import Footer from "../components/ModalInsertMarker/Footer";
 
 import MapMarker from "../components/MapMarker";
 
-const StepperPage = ({ openModal }) => {
+import SubmitBttn from "../components/SubmitBttn";
+
+const StepperPage = ({ openModal, closeModal }) => {
   const [current, setCurrent] = useState(0);
-  const { isOpen, onClose } = useDisclosure();
+
+  console.log(closeModal);
 
   const [markerPosition, setMarkerPosition] = useState(null);
+
+  const [files, setFiles] = useState([]);
 
   const updateCurrent = (newValue) => {
     setCurrent(newValue);
@@ -42,25 +47,37 @@ const StepperPage = ({ openModal }) => {
     />,
     <Footer
       prevButton={false}
-      nextButton={true}
+      nextButton={false}
       prevFunction={() => updateCurrent(0)}
+      nextFunction={() => updateCurrent(2)}
+    />,
+    <Footer
+      prevButton={false}
+      nextButton={true}
+      prevFunction={() => updateCurrent(1)}
       nextFunction={() => updateCurrent(1)}
     />,
-    <Footer></Footer>,
   ];
 
   const body = [
     <div className="h-[32rem]">
       <MapMarker markerCoord={markerPosition} insertFunction={placeNewMarker} />
     </div>,
-    <FilePicker />,
+    <FilePicker setFiles={setFiles} />,
+    <div className="flex h-96 w-full justify-center items-center ">
+      <SubmitBttn
+        curCord={markerPosition}
+        curFiles={files}
+        closeModal={closeModal}
+      />
+    </div>,
   ];
 
   return (
     <CustomModal
-      isOpen={isOpen || openModal}
-      onClose={onClose}
-      modalHeader={<Title value={current} />} // Has to change dynamically
+      isOpen={openModal}
+      onClose={closeModal}
+      modalHeader={<Title is />} // Has to change dynamically
       modalBody={<Body insertJsx={body[current]} />}
       modalFooter={footers[current]} // This had to change dynamically
       modalSize={"full"}

@@ -5,9 +5,6 @@ import { buildPath } from "./buildPath";
 const app_name = "cop4331-g6-lp-c6d624829cab";
 
 const FileUploadForm = () => {
-  function buildPath(route) {
-    return "http://localhost:5001/" + route;
-  }
   const [caption, setCaption] = useState("");
   const [locationId, setLocationId] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -23,14 +20,15 @@ const FileUploadForm = () => {
 
     const formData = new FormData();
     selectedFiles.forEach((file, index) => {
+      console.log(file);
       formData.append(`image`, file); // Append each selected file
     });
     formData.append("caption", caption); // Append other form fields
-    formData.append("username", "RickL");
-    formData.append("locationId", "66197f796b5389daa4f06dec");
+    formData.append("username", "Admintest1");
+    formData.append("locationId", "661d7c61209ac3e07fe5e064");
 
     try {
-      const response = await fetch(buildPath("posts"), {
+      const response = await fetch("https://memorymap.xyz/posts", {
         method: "POST",
         body: formData,
       });

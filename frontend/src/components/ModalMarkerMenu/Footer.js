@@ -3,9 +3,27 @@ import { ModalFooter } from "@chakra-ui/react";
 import { ButtonGroup, Button } from "@chakra-ui/react";
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
 
-const Footer = ({ closeModal, locationId }) => {
-  function deletePin() {
-    // TODO Need David to test it out
+const Footer = ({ closeModal, locationId, deletePin }) => {
+  async function deleteAll() {
+    try {
+      const response = await fetch(
+        `https://memorymap.xyz/api/locations/${locationId}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Network response was not ok");
+      }
+
+      const data = await response.text();
+      console.log(data);
+      // Call deletePin after the response is okay
+      deletePin();
+    } catch (error) {
+      console.error(`Fetch Error: ${error}`);
+    }
   }
 
   return (
@@ -33,7 +51,7 @@ const Footer = ({ closeModal, locationId }) => {
             </AlertDialog.Title>
             <AlertDialog.Description className="mt-4 mb-5 text-[15px] leading-normal">
               This action cannot be undone. This will permanently delete your
-              pin and remove your data from our servers.
+              pin and remove your images from our servers.
             </AlertDialog.Description>
             <div className="flex justify-end gap-[25px]">
               <AlertDialog.Cancel asChild>
@@ -43,7 +61,7 @@ const Footer = ({ closeModal, locationId }) => {
               </AlertDialog.Cancel>
               <AlertDialog.Action asChild>
                 <button
-                  onClick={deletePin()}
+                  onClick={deleteAll}
                   className="text-white bg-red-500 hover:bg-red-600 focus:shadow-red-700 inline-flex h-[35px] items-center justify-center rounded-[4px] px-[15px] font-medium leading-none outline-none focus:shadow-[0_0_0_2px]"
                 >
                   Yes, delete pin

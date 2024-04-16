@@ -1,43 +1,23 @@
-import React, { FunctionComponent } from "react";
-import { useState, useEffect } from "react";
-import {
-  APIProvider,
-  Map,
-  AdvancedMarker,
-  useAdvancedMarkerRef,
-  InfoWindow,
-  MapMouseEvent,
-} from "@vis.gl/react-google-maps";
-
-import { buildPath } from "./buildPath";
-
+import React, { useState, useEffect } from "react";
+import { APIProvider, Map, AdvancedMarker } from "@vis.gl/react-google-maps";
 import CustomModal from "./Modal";
-
-import {
-  Button,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  useDisclosure,
-} from "@chakra-ui/react";
-
+import { useDisclosure } from "@chakra-ui/react";
 import Title from "./ModalMarkerMenu/Title";
+import Body from "./ModalMarkerMenu/Body";
 import Footer from "./ModalMarkerMenu/Footer";
 
 const App = () => {
   const [locations, setLocations] = useState([]);
   const { isOpen, onOpen, onClose } = useDisclosure();
-
   const [selectedLocationName, setSelectedLocationName] = useState("");
+  const [defaultZoom, setDefaultZoom] = useState(7);
+  const [defaultCenter, setDefaultCenter] = useState({
+    lat: 28.60216740171059,
+    lng: -81.19755884949998,
+  });
+  const [isAddImagesClicked, setIsAddImagesClicked] = useState(false); // New state variable
 
   useEffect(() => {
-    const username = "<Your Username Here>"; // Replace with the actual username
-    // Use useDisclosure hook to manage the modal state
-
     fetch(`https://memorymap.xyz/api/locations/Admintest1`)
       .then((response) => {
         if (!response.ok) {
@@ -47,7 +27,6 @@ const App = () => {
       })
       .then((data) => {
         setLocations(data);
-        console.log(locations);
       })
       .catch((error) => {
         console.error(
@@ -55,30 +34,42 @@ const App = () => {
           error
         );
       });
-  }, []);
+  }, []); // Removed mapRefresh dependency
 
   function handleMarkerClick(uniqueId) {
-    console.log(uniqueId);
     setSelectedLocationName(uniqueId);
     onOpen();
+  }
+
+  // For states
+  const handleAddImagesClick = () => {
+    setIsAddImagesClicked(true);
+  };
+
+  const handleBackClick = () => {
+    setIsAddImagesClicked(false);
+  };
+
+  function handleDeletePin(locationId) {
+    setLocations(locations.filter((location) => location._id !== locationId));
   }
 
   return (
     <APIProvider apiKey={"AIzaSyABVpzV6o5YTJ6FbCKHgMd_SUspf0AYJO0"}>
       <Map
-        defaultZoom={3}
-        defaultCenter={{ lat: 53.54992, lng: 10.00678 }}
+        defaultZoom={defaultZoom}
+        defaultCenter={defaultCenter}
         mapId={"<Your custom MapId here>"}
       >
         {locations.length !== 0 &&
           locations.map((item) => (
             <AdvancedMarker
-              key={item.locationName}
+              key={item._id}
               position={{
                 lat: parseFloat(item.latitude),
                 lng: parseFloat(item.longitude),
               }}
-              onClick={() => handleMarkerClick(`${item.locationName}`)}
+              onClick={() => handleMarkerClick(`${item._id}`)}
             />
           ))}
       </Map>
@@ -86,9 +77,25 @@ const App = () => {
       {selectedLocationName && (
         <CustomModal
           isOpen={isOpen}
-          modalHeader={<Title />}
+          modalHeader={
+            <Title
+              isAddImagesClicked={isAddImagesClicked}
+              handleBackClick={handleBackClick}
+              handleAddImagesClick={handleAddImagesClick}
+            />
+          }
+          modalBody={
+            <Body
+              markerId={selectedLocationName}
+              isAddImagesClicked={isAddImagesClicked}
+            />
+          }
           modalFooter={
-            <Footer closeModal={onClose} locationId={selectedLocationName} />
+            <Footer
+              closeModal={onClose}
+              locationId={selectedLocationName}
+              deletePin={() => handleDeletePin(selectedLocationName)}
+            />
           }
         />
       )}

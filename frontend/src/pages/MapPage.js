@@ -44,7 +44,7 @@ const MapPage = () => {
         </Flex>
 
         {/* Custom Modal */}
-        <DisplayMenu openModal={isOpen} />
+        <DisplayMenu openModal={isOpen} closeModal={onClose} />
       </Flex>
     </ChakraProvider>
   );

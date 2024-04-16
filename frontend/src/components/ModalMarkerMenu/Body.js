@@ -1,13 +1,17 @@
 // ModalBody.js
 import React from "react";
-import FilePicker from "../FilePicker";
+import FilePicker from "../ImageUpdate";
 import GalleryGrid from "../Gallery/GalleryGrid";
 import { ModalBody } from "@chakra-ui/react";
 
-const Body = ({ isAddImagesClicked }) => {
+const Body = ({ isAddImagesClicked, markerId }) => {
   return (
     <ModalBody>
-      {isAddImagesClicked ? <FilePicker /> : <GalleryGrid />}
+      {isAddImagesClicked ? (
+        <FilePicker markerId={markerId} />
+      ) : (
+        <GalleryGrid />
+      )}
     </ModalBody>
   );
 };
