@@ -69,6 +69,9 @@ const StepperPage = ({ openModal, closeModal }) => {
         curCord={markerPosition}
         curFiles={files}
         closeModal={closeModal}
+        setCurrent={setCurrent}
+        setMarkerPosition={setMarkerPosition}
+        setFiles={setFiles}
       />
     </div>,
   ];

@@ -32,7 +32,10 @@ function CellRenderer({ index, key, parent, style, list, setList, cache }) {
 }
 
 // Create a component that returns the Masonry JSX
-function MyMasonryComponent() {
+function MyMasonryComponent({ markerId }) {
+  // Retrieve user data from localStorage
+  let userData = JSON.parse(localStorage.getItem("user_data"));
+
   const [list, setList] = useState([]);
   const [cache] = useState(
     () =>
@@ -52,7 +55,7 @@ function MyMasonryComponent() {
 
   useEffect(() => {
     cache.clearAll();
-    fetch("https://memorymap.xyz/posts/Admintest1/661d7c61209ac3e07fe5e064")
+    fetch(`https://memorymap.xyz/posts/${userData.username}/${markerId}`)
       .then((response) => response.json())
       .then((data) => {
         const newList = data.map((item) => ({

@@ -17,8 +17,12 @@ const App = () => {
   });
   const [isAddImagesClicked, setIsAddImagesClicked] = useState(false); // New state variable
 
+  // Retrieve user data from localStorage
+  let userData = JSON.parse(localStorage.getItem("user_data"));
+
   useEffect(() => {
-    fetch(`https://memorymap.xyz/api/locations/Admintest1`)
+    // Retrieve user data from localStorage
+    fetch(`https://memorymap.xyz/api/locations/${userData.username}`)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Network response was not ok");

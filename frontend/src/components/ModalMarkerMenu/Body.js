@@ -10,7 +10,7 @@ const Body = ({ isAddImagesClicked, markerId }) => {
       {isAddImagesClicked ? (
         <FilePicker markerId={markerId} />
       ) : (
-        <GalleryGrid />
+        <GalleryGrid markerId={markerId} />
       )}
     </ModalBody>
   );

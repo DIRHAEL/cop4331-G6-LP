@@ -19,14 +19,14 @@ const Centered = styled("div", {
 
 export default function FilePicker({ markerId }) {
   const [errorMessage, setErrorMessage] = useState("");
+  // Retrieve user data from localStorage
+  let userData = JSON.parse(localStorage.getItem("user_data"));
 
   const handleFileUpload = async (acceptedFiles, rejectedFiles) => {
     if (rejectedFiles.length > 0) {
       setErrorMessage("Please upload only JPG or PNG images.");
       return;
     }
-
-    console.log(markerId);
 
     //setIsUploading(true); // Set uploading status to true
 
@@ -36,8 +36,8 @@ export default function FilePicker({ markerId }) {
       formData.append(`image`, file); // Append each selected file
     });
     formData.append("caption", ""); // Append other form fields
-    formData.append("username", "Admintest1");
-    formData.append("locationId", "661d7c61209ac3e07fe5e064");
+    formData.append("username", userData.username);
+    formData.append("locationId", markerId);
 
     try {
       const response = await fetch("https://memorymap.xyz/posts", {

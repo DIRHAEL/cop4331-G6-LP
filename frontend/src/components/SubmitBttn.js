@@ -28,10 +28,20 @@ function SpacedButton(props) {
   );
 }
 
-function ProgressStepsContainer({ curCord, curFiles, closeModal }) {
+function ProgressStepsContainer({
+  curCord,
+  curFiles,
+  closeModal,
+  setMarkerPosition,
+  setCurrent,
+  setFiles,
+}) {
   const handleSubmit = async (event) => {
+    // Retrieve user data from localStorage
+    let userData = JSON.parse(localStorage.getItem("user_data"));
+
     let obj = {
-      username: "Admintest1",
+      username: userData.username,
       latitude: curCord.lat,
       longitude: curCord.lng,
     };
@@ -55,7 +65,7 @@ function ProgressStepsContainer({ curCord, curFiles, closeModal }) {
           formData.append("image", curFiles);
         });
 
-        formData.append("username", "Admintest1");
+        formData.append("username", userData.username);
         formData.append("caption", "whater");
         formData.append("locationId", markId);
 
@@ -66,6 +76,9 @@ function ProgressStepsContainer({ curCord, curFiles, closeModal }) {
 
         console.log("Files uploaded successfully");
 
+        setCurrent(0);
+        setMarkerPosition(null);
+        setFiles([]);
         closeModal();
       } catch (error) {
         console.error("Error uploading files:", error);
