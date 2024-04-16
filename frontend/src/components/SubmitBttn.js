@@ -35,6 +35,8 @@ function ProgressStepsContainer({
   setMarkerPosition,
   setCurrent,
   setFiles,
+  locations,
+  setLocations,
 }) {
   const handleSubmit = async (event) => {
     // Retrieve user data from localStorage
@@ -76,9 +78,18 @@ function ProgressStepsContainer({
 
         console.log("Files uploaded successfully");
 
+        const newMarker = {
+          _id: markId,
+          latitude: curCord.lat,
+          longitude: curCord.lng,
+          username: userData.username,
+        };
+
         setCurrent(0);
         setMarkerPosition(null);
         setFiles([]);
+
+        setLocations((locations) => [...locations, newMarker]);
         closeModal();
       } catch (error) {
         console.error("Error uploading files:", error);

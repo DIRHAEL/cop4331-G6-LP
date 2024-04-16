@@ -6,8 +6,7 @@ import Title from "./ModalMarkerMenu/Title";
 import Body from "./ModalMarkerMenu/Body";
 import Footer from "./ModalMarkerMenu/Footer";
 
-const App = () => {
-  const [locations, setLocations] = useState([]);
+const App = ({ locations, setLocations }) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [selectedLocationName, setSelectedLocationName] = useState("");
   const [defaultZoom, setDefaultZoom] = useState(7);
@@ -31,6 +30,7 @@ const App = () => {
       })
       .then((data) => {
         setLocations(data);
+        console.log(locations);
       })
       .catch((error) => {
         console.error(

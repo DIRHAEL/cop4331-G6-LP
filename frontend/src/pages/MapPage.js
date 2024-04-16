@@ -6,8 +6,12 @@ import { useDisclosure } from "@chakra-ui/react";
 
 import DisplayMenu from "../components/DisplayMenu";
 
+import { useState } from "react";
+
 const MapPage = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
+
+  const [locations, setLocations] = useState([]);
 
   return (
     <ChakraProvider>
@@ -39,12 +43,17 @@ const MapPage = () => {
 
           {/* Right Side - Map */}
           <Flex flexGrow="1">
-            <MapComponent />
+            <MapComponent locations={locations} setLocations={setLocations} />
           </Flex>
         </Flex>
 
         {/* Custom Modal */}
-        <DisplayMenu openModal={isOpen} closeModal={onClose} />
+        <DisplayMenu
+          openModal={isOpen}
+          closeModal={onClose}
+          locations={locations}
+          setLocations={setLocations}
+        />
       </Flex>
     </ChakraProvider>
   );

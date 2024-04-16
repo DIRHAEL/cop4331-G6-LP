@@ -15,7 +15,7 @@ import MapMarker from "../components/MapMarker";
 
 import SubmitBttn from "../components/SubmitBttn";
 
-const StepperPage = ({ openModal, closeModal }) => {
+const StepperPage = ({ openModal, closeModal, locations, setLocations }) => {
   const [current, setCurrent] = useState(0);
 
   console.log(closeModal);
@@ -72,6 +72,8 @@ const StepperPage = ({ openModal, closeModal }) => {
         setCurrent={setCurrent}
         setMarkerPosition={setMarkerPosition}
         setFiles={setFiles}
+        locations={locations}
+        setLocations={setLocations}
       />
     </div>,
   ];
