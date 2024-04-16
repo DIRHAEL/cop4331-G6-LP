@@ -24,6 +24,7 @@ function CellRenderer({ index, key, parent, style, list, setList, cache }) {
             height: datum.imageHeight,
             width: datum.imageWidth,
           }}
+          onClick={() => window.open(datum.source, "_blank")}
         />
         <h4>{datum.caption}</h4>
       </div>
