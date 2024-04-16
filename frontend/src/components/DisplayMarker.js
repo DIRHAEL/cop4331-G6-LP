@@ -56,6 +56,8 @@ const App = ({ locations, setLocations }) => {
 
   function handleDeletePin(locationId) {
     setLocations(locations.filter((location) => location._id !== locationId));
+
+    onClose();
   }
 
   return (
